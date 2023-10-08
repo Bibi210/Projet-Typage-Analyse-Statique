@@ -13,9 +13,7 @@ let () =
   try
     let output = Parser.prog Lexer.token buf in
     close_in f;
-    Prettyprinter.fprintf_node_prog Format.str_formatter output;
-    Prettyprinter.fprintf_prog Format.std_formatter output;
-    print_endline (Format.flush_str_formatter ())
+    Prettyprinter.fprintf_prog Format.std_formatter (Evaluator.betaReduce output)
   with
   | Lexer.LexingError s -> err s.msg s.pos
   | Parser.Error -> err "Syntax error" (Lexing.lexeme_start_p buf)

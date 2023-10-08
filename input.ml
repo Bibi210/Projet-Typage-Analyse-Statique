@@ -1,1 +1,1 @@
-((\ adffd -> a)a)
+(((fun x -> (fun x -> x)) x) x)

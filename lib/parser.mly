@@ -32,11 +32,11 @@ expr:
 pre_expr:
     | LOpenPar ; e = pre_expr ; LClosePar ; { e }
     | v = variable ; { Var v }
-    | LFun  ; arg = variable ; LSimpleArrow ; body = expr  { 
-        Lambda { arg ; body }
+    |LOpenPar; LFun  ; varg = variable ; LSimpleArrow ; body = expr; LClosePar  { 
+        Lambda { varg ; body }
     }
-    | LOpenPar; func = expr ; arg = expr; LClosePar; { 
-        App { func ; arg }
+    | LOpenPar; func = expr ; carg = expr; LClosePar; { 
+        App { func ; carg }
     }
     
 variable:

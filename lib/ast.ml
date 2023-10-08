@@ -11,10 +11,10 @@ type expr =
 and pre_expr =
   | App of
       { func : expr
-      ; arg : expr
+      ; carg : expr
       }
   | Lambda of
-      { arg : variable
+      { varg : variable
       ; body : expr
       }
   | Var of variable
