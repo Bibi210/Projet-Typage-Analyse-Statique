@@ -1,0 +1,8 @@
+(library
+ (name ProjetTAS))
+
+(menhir
+ (modules parser))
+
+(ocamllex
+ (modules lexer))
