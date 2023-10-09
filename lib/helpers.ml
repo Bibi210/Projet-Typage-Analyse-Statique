@@ -14,3 +14,10 @@ let err msg pos =
     msg;
   exit 1
 ;;
+
+let symbolGenerator =
+  let counter = ref 0 in
+  fun name ->
+    incr counter;
+    Printf.sprintf "%s%d" name !counter
+;;

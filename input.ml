@@ -1,1 +1,5 @@
-(((fun x -> (fun x -> x)) x) x)
+
+
+
+(
+  (fun a -> \ b -> (a:'int)) \ a -> b)

@@ -3,9 +3,25 @@ type variable =
   ; vpos : Helpers.position
   }
 
+type ctype = Nat
+
+type etype =
+  { tpre : pre_type
+  ; tpos : Helpers.position
+  }
+
+and pre_type =
+  | TLambda of
+      { varg : etype
+      ; tbody : etype
+      }
+  | TVar of string
+  | TConst of ctype
+
 type expr =
   { epre : pre_expr
   ; epos : Helpers.position
+  ; etype : etype
   }
 
 and pre_expr =
@@ -18,20 +34,5 @@ and pre_expr =
       ; body : expr
       }
   | Var of variable
-
-type ctype = Nat
-
-type etype =
-  { tpre : pre_type
-  ; tpos : Helpers.position
-  }
-
-and pre_type =
-  | TLambda of
-      { arg : etype
-      ; body : etype
-      }
-  | TVar of string
-  | Const of ctype
 
 type prog = expr

@@ -1,12 +1,6 @@
 open Ast
+open Helpers
 module Env = Map.Make (String)
-
-let converter =
-  let counter = ref 0 in
-  fun name ->
-    incr counter;
-    Printf.sprintf "%s%d" name !counter
-;;
 
 let alphaConverter expr =
   let changeVarId oldVar newid = { oldVar with id = newid } in
@@ -18,7 +12,7 @@ let alphaConverter expr =
        | Some new_id -> writeConvertion (Var (changeVarId x new_id))
        | None -> expr)
     | Lambda { varg; body } ->
-      let new_id = converter varg.id in
+      let new_id = symbolGenerator varg.id in
       let new_env = Env.add varg.id new_id env in
       writeConvertion
         (Lambda { varg = changeVarId varg new_id; body = alphaConverter' body new_env })

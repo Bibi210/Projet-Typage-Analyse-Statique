@@ -13,6 +13,7 @@ let () =
   try
     let output = Parser.prog Lexer.token buf in
     close_in f;
+    print_endline "Parsed AST:";
     Prettyprinter.fprintf_prog Format.std_formatter (Evaluator.betaReduce output)
   with
   | Lexer.LexingError s -> err s.msg s.pos

@@ -5,6 +5,12 @@
     msg: string;
     pos: Lexing.position;
   }
+
+    let getToken t = 
+    match t with
+      |"nat" -> LParseType (TConst Nat)
+      | a -> LBasicIdent a
+
 }
 
 let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
@@ -14,6 +20,7 @@ let bool = ("true"|"false")
 
 let white = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n" | "\n\r"
+let vartype = [''']basic_ident*
 
 rule token = parse
 | '(' {LOpenPar}
@@ -21,7 +28,9 @@ rule token = parse
 | "fun" {LFun}
 | '\\' {LFun}
 | "->" {LSimpleArrow}
-| basic_ident as ident {LBasicIdent ident}
+| ':' {LColon}
+| vartype as v {LVarType v}
+| basic_ident as ident {getToken ident}
 | "//"  { single_line_comment lexbuf }
 | "(*" {multi_line_comment lexbuf}
 | white* { token lexbuf }
