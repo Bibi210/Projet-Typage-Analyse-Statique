@@ -17,6 +17,7 @@ and pre_type =
       }
   | TVar of string
   | TConst of ctype
+  | TEquationEqual of etype * etype
 
 type expr =
   { epre : pre_expr

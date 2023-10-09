@@ -13,6 +13,8 @@ let rec fmt_pre_type fmt ty =
   | TVar v -> fmt_string fmt v
   | TLambda x -> fprintf fmt "(%a -> %a)" fmt_pre_type x.varg fmt_pre_type x.tbody
   | TConst x -> fprintf fmt "%a" fmt_const x
+  | TEquationEqual (left, right) ->
+    fprintf fmt "(%a = %a)" fmt_pre_type left fmt_pre_type right
 ;;
 
 let rec fmt_pre_expr fmt expr =
