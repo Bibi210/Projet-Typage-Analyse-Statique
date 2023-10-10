@@ -18,8 +18,8 @@ let rec generateTypeEquations' target env tree =
     match tree.epre with
     | Var v ->
       ( (match Env.find_opt v.id env with
-         | Some x -> keepOldPos tree.etype (TEquationEqual (target, x))
-         | None -> keepOldPos tree.etype (TEquationEqual (target, unboudTVar treeTpos)))
+         | Some x -> keepOldPos tree.etype (TEquationEqual (x, target))
+         | None -> keepOldPos tree.etype (TEquationEqual (unboudTVar treeTpos, target)))
       , tree.epre )
     | Lambda lmb ->
       let t_varArg = generateTVar treeTpos in
@@ -27,7 +27,10 @@ let rec generateTypeEquations' target env tree =
       let rbody =
         generateTypeEquations' t_varbody (Env.add lmb.varg.id t_varArg env) lmb.body
       in
-      ( keepOldPos tree.etype (TLambda { varg = t_varArg; tbody = t_varbody })
+      let emitedType =
+        keepOldPos tree.etype (TLambda { varg = t_varArg; tbody = t_varbody })
+      in
+      ( keepOldPos tree.etype (TEquationEqual (target, emitedType))
       , Lambda { lmb with body = rbody } )
     | App app ->
       let t_varApp = generateTVar treeTpos in
@@ -38,15 +41,12 @@ let rec generateTypeEquations' target env tree =
           app.func
       in
       let carg = generateTypeEquations' t_varApp env app.carg in
-      target, App { func; carg }
+      tree.etype, App { func; carg }
   in
-  match tree.etype.tpre with
-  | TVar _ -> { tree with etype = newType; epre = newExpr }
-  | _ ->
-    { tree with
-      etype = keepOldPos newType (TEquationEqual (tree.etype, newType))
-    ; epre = newExpr
-    }
+  { tree with
+    etype = keepOldPos newType (TEquationEqual (tree.etype, newType))
+  ; epre = newExpr
+  }
 ;;
 
 let generateTypeEquations tree =

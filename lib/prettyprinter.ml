@@ -17,6 +17,18 @@ let rec fmt_pre_type fmt ty =
     fprintf fmt "(%a = %a)" fmt_pre_type left fmt_pre_type right
 ;;
 
+let rec pre_type_to_string ty =
+  match ty.tpre with
+  | TVar v -> v
+  | TLambda x ->
+    "(" ^ pre_type_to_string x.varg ^ " -> " ^ pre_type_to_string x.tbody ^ ")"
+  | TConst _ -> "Nat"
+  | TEquationEqual (left, right) ->
+    "(" ^ pre_type_to_string left ^ " = " ^ pre_type_to_string right ^ ")"
+;;
+
+let fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty
+
 let rec fmt_pre_expr fmt expr =
   match expr.epre with
   | Var v -> fmt_variable fmt v
