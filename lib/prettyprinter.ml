@@ -16,16 +16,8 @@ let fmt_const fmt = function
 let rec fmt_pre_type fmt ty =
   match ty.tpre with
   | TVar v -> fmt_string fmt v
-  | TLambda x -> fprintf fmt "%a -> %a" fmt_pre_type x.targ fmt_pre_type x.tbody
+  | TLambda x -> fprintf fmt "(%a -> %a)" fmt_pre_type x.targ fmt_pre_type x.tbody
   | TConst x -> fprintf fmt "%a" fmt_const x
-;;
-
-let rec pre_type_to_string ty =
-  match ty.tpre with
-  | TVar v -> v
-  | TLambda x ->
-    "(" ^ pre_type_to_string x.targ ^ " -> " ^ pre_type_to_string x.tbody ^ ")"
-  | TConst _ -> "Nat"
 ;;
 
 let fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty
@@ -36,7 +28,7 @@ let rec fmt_pre_expr fmt expr =
   match expr.epre with
   | Var v -> fmt_variable fmt v
   | App x -> fprintf fmt "(%a %a)" fmt_expr x.func fmt_expr x.carg
-  | Lambda x -> fprintf fmt "(fun %a -> %a)" fmt_variable x.varg fmt_expr x.body
+  | Lambda x -> fprintf fmt "fun %a -> %a" fmt_variable x.varg fmt_expr x.body
 
 and fmt_expr fmt expr =
   match expr.etyp_annotation with

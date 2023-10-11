@@ -1,1 +1,1 @@
-(((fun a -> (fun b -> a )) : ('a -> 'a) )b)
+a b c
