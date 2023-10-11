@@ -12,17 +12,16 @@ type etype =
 
 and pre_type =
   | TLambda of
-      { varg : etype
+      { targ : etype
       ; tbody : etype
       }
   | TVar of string
   | TConst of ctype
-  | TEquationEqual of etype * etype
 
 type expr =
   { epre : pre_expr
   ; epos : Helpers.position
-  ; etype : etype
+  ; etyp_annotation : etype option
   }
 
 and pre_expr =
@@ -37,3 +36,8 @@ and pre_expr =
   | Var of variable
 
 type prog = expr
+
+type equation =
+  { left : etype
+  ; right : etype
+  }

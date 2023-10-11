@@ -15,16 +15,17 @@ let () =
     close_in f;
     (* Print the AST *)
     print_endline "AST:";
-    Prettyprinter.fprintf_prog Format.std_formatter output;
-    let typed = Typeur.generateTypeEquations output in
+    Prettyprinter.print_prog output;
+    let equations = Typeur.generateTypeEquations output in
+    Prettyprinter.print_equation_list equations;
     (* Print the type equations *)
-    print_endline "Type equations:";
-    Prettyprinter.fprintf_prog Format.std_formatter typed;
+    Typeur.infer output;
     (* Print the evaluation *)
     print_endline "Evaluation:";
-    let _evaluated = Evaluator.betaReduce typed in
+    let _evaluated = Evaluator.betaReduce output in
     ()
   with
   | Lexer.LexingError s -> err s.msg s.pos
   | Parser.Error -> err "Syntax error" (Lexing.lexeme_start_p buf)
+  | Typeur.TypingError s -> errWithPosition s.message s.location
 ;;

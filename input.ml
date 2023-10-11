@@ -1,1 +1,1 @@
-((fun a -> (b:nat))d)
+(((fun a -> (fun b -> a )) : ('a -> 'a) )b)

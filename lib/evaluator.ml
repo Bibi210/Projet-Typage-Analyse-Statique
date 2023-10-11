@@ -42,7 +42,7 @@ let betaReduce e =
     | App { func; carg } ->
       (match func.epre with
        | Lambda { varg; body } ->
-         Prettyprinter.fprintf_prog Format.std_formatter expr;
+         Prettyprinter.print_prog expr;
          betaReduce' (substitute body varg.id carg)
        | _ ->
          let func = betaReduce' func in
@@ -51,6 +51,5 @@ let betaReduce e =
     | _ -> expr
   in
   let e = alphaConverter e in
-  Prettyprinter.fprintf_prog Format.std_formatter e;
-  betaReduce' e
+  Prettyprinter.print_prog (betaReduce' e)
 ;;

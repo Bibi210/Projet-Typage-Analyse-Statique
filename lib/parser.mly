@@ -13,7 +13,6 @@
 %token <string> LBasicIdent LVarType
 
 %token LSimpleArrow
-%left LSimpleArrow
 %token LFun
 
 %token <Ast.pre_type>LParseType
@@ -30,23 +29,19 @@ expr:
         {
             epre = e ; 
             epos = position $startpos(e) $endpos(e);
-            etype = 
-            {
-                tpre = TVar (symbolGenerator "t") ;
-                tpos = position $startpos(e) $endpos(e)
-            }
+            etyp_annotation = None
         }
     }
     | LOpenPar ; epre = pre_expr ; LColon; etype = typing ; LClosePar {
         {
             epre;
             epos = position $startpos(epre) $endpos(epre);
-            etype 
+            etyp_annotation = Some(etype) 
         }
     }
 pre_expr:
     | v = variable ; { Var v }
-    | LFun  ; varg = variable ; LSimpleArrow ; body = expr  { 
+    | LOpenPar ; LFun  ; varg = variable ; LSimpleArrow ; body = expr ; LClosePar  { 
         Lambda { varg ; body }
     }
     | LOpenPar; func = expr ; carg = expr; LClosePar; { 
@@ -77,9 +72,9 @@ typing:
 
 pre_typing:
     | var = LVarType { TVar var }
-    | varg = typing; LSimpleArrow;  tbody = typing {
+    | LOpenPar; targ = typing; LSimpleArrow;  tbody = typing;LClosePar {
         TLambda {
-            varg;
+            targ;
             tbody
         }
     }

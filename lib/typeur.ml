@@ -2,8 +2,14 @@ open Ast
 open Helpers
 module Env = Map.Make (String)
 
+type typing_errors =
+  | Unification of equation
+  | Unbound of variable
+
+exception InternalError of typing_errors
+
 exception
-  Type_error of
+  TypingError of
     { message : string
     ; location : Helpers.position
     }
@@ -11,89 +17,93 @@ exception
 let generateTVar pos = { tpos = pos; tpre = TVar (symbolGenerator "tvar") }
 let unboudTVar pos = { tpos = pos; tpre = TVar (symbolGenerator "Unbound") }
 
-let rec generateTypeEquations' target env tree =
-  let keepOldPos oldType newt = { oldType with tpre = newt } in
-  let treeTpos = tree.etype.tpos in
-  let newType, newExpr =
-    match tree.epre with
-    | Var v ->
-      ( (match Env.find_opt v.id env with
-         | Some x -> keepOldPos tree.etype (TEquationEqual (x, target))
-         | None -> keepOldPos tree.etype (TEquationEqual (unboudTVar treeTpos, target)))
-      , tree.epre )
-    | Lambda lmb ->
-      let t_varArg = generateTVar treeTpos in
-      let t_varbody = generateTVar lmb.body.etype.tpos in
-      let rbody =
-        generateTypeEquations' t_varbody (Env.add lmb.varg.id t_varArg env) lmb.body
-      in
-      let emitedType =
-        keepOldPos tree.etype (TLambda { varg = t_varArg; tbody = t_varbody })
-      in
-      ( keepOldPos tree.etype (TEquationEqual (target, emitedType))
-      , Lambda { lmb with body = rbody } )
-    | App app ->
-      let t_varApp = generateTVar treeTpos in
-      let func =
-        generateTypeEquations'
-          (keepOldPos app.func.etype (TLambda { varg = t_varApp; tbody = target }))
-          env
-          app.func
-      in
-      let carg = generateTypeEquations' t_varApp env app.carg in
-      tree.etype, App { func; carg }
-  in
-  { tree with
-    etype = keepOldPos newType (TEquationEqual (tree.etype, newType))
-  ; epre = newExpr
-  }
-;;
-
 let generateTypeEquations tree =
-  let t_var = generateTVar tree.etype.tpos in
-  let rtree = generateTypeEquations' t_var Env.empty tree in
-  rtree
-;;
-
-let rec occursCheck var t =
-  match t.tpre with
-  | TVar x when x = var -> true
-  | TLambda { varg; tbody } -> occursCheck var varg || occursCheck var tbody
-  | _ -> false
-;;
-
-let rec substitute typ tvar newtyp =
-  match typ.tpre with
-  | TVar x when x = tvar -> newtyp
-  | TLambda { varg; tbody } ->
-    let newvarg = substitute varg tvar newtyp in
-    let newtbody = substitute tbody tvar newtyp in
-    { typ with tpre = TLambda { varg = newvarg; tbody = newtbody } }
-  | TEquationEqual (t1, t2) ->
-    let newt1 = substitute t1 tvar newtyp in
-    let newt2 = substitute t2 tvar newtyp in
-    { typ with tpre = TEquationEqual (newt1, newt2) }
-  | _ -> typ
-;;
-
-let rec substituteAndWrite tree tvar newtyp =
-  let newType = substitute tree.etype tvar newtyp in
-  let newExpr =
-    match tree.epre with
-    | Var _ -> tree.epre
-    | Lambda lmb ->
-      let newbody = substituteAndWrite lmb.body tvar newtyp in
-      Lambda { lmb with body = newbody }
-    | App app ->
-      let newfunc = substituteAndWrite app.func tvar newtyp in
-      let newcarg = substituteAndWrite app.carg tvar newtyp in
-      App { func = newfunc; carg = newcarg }
+  let rec generateEquation' node target env =
+    (match node.etyp_annotation with
+     | Some t -> [ { left = target; right = t } ]
+     | None -> [])
+    @
+    match node.epre with
+    | Var x ->
+      [ (match Env.find_opt x.id env with
+         | Some t -> { left = target; right = t }
+         | None -> { left = target; right = unboudTVar node.epos })
+      ]
+    | Lambda { varg; body } ->
+      let targ = generateTVar node.epos in
+      let tbody = generateTVar node.epos in
+      let env' = Env.add varg.id targ env in
+      let eq1 = generateEquation' body tbody env' in
+      { left = target; right = { tpos = node.epos; tpre = TLambda { targ; tbody } } }
+      :: eq1
+    | App { func; carg } ->
+      let targ = generateTVar node.epos in
+      let eq1 =
+        generateEquation'
+          func
+          { tpos = node.epos; tpre = TLambda { targ; tbody = target } }
+          env
+      in
+      let eq2 = generateEquation' carg targ env in
+      eq1 @ eq2
   in
-  { tree with etype = newType; epre = newExpr }
+  generateEquation' tree (generateTVar tree.epos) Env.empty
 ;;
 
+let occurCheck var typ =
+  let rec occurCheck' var typ =
+    match typ.tpre with
+    | TVar x when x = var -> true
+    | TLambda { targ; tbody } -> occurCheck' var targ || occurCheck' var tbody
+    | _ -> false
+  in
+  occurCheck' var typ
+;;
 
-(* TODO Passer a une liste d'équation type equation = ptype * ptype) list *)
-(* TODO Change l'ast pour stock des Options equation *)
-(* TODO Remove TEqEquation *)
-(* TODO Fix Using Teacher stuff *)
+let rec substitute var newtyp oldtyp =
+  match oldtyp.tpre with
+  | TVar x when x = var -> newtyp
+  | TLambda { targ; tbody } ->
+    let targ' = substitute var newtyp targ in
+    let tbody' = substitute var newtyp tbody in
+    { tpos = oldtyp.tpos; tpre = TLambda { targ = targ'; tbody = tbody' } }
+  | _ -> oldtyp
+;;
+
+let substituteAll var typ equations =
+  List.map
+    (fun { left; right } ->
+      { left = substitute var typ left; right = substitute var typ right })
+    equations
+;;
+
+let rec unify ls =
+  match ls with
+  | [] -> []
+  | { left; right } :: tail ->
+    print_string "\nStep unify : ";
+    Prettyprinter.print_equation { left; right };
+    Prettyprinter.print_equation_list ls;
+    print_newline ();
+    (match left.tpre, right.tpre with
+     | leftT, rightT when leftT = rightT -> unify tail
+     | TVar x, _ when not (occurCheck x right) -> unify (substituteAll x right tail)
+     | _, TVar x when not (occurCheck x left) -> unify (substituteAll x left tail)
+     | TLambda { targ; tbody }, TLambda { targ = targ'; tbody = tbody' } ->
+       unify ({ left = targ; right = targ' } :: { left = tbody; right = tbody' } :: tail)
+     | _ -> raise (InternalError (Unification { left; right })))
+;;
+
+let infer tree =
+  try
+    let equations = generateTypeEquations tree in
+    let _unified = unify equations in
+    ()
+  with
+  | InternalError (Unification a) ->
+    raise
+      (TypingError
+         { message = Prettyprinter.string_of_equation a; location = a.left.tpos })
+  | InternalError (Unbound v) ->
+    raise (TypingError { message = "Unbound variable " ^ v.id; location = v.vpos })
+;;

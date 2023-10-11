@@ -15,6 +15,17 @@ let err msg pos =
   exit 1
 ;;
 
+(*For error messages*)
+let errWithPosition msg position =
+  Printf.eprintf
+    "Error from line %d col %d to line %d col %d: \n%s.\n"
+    position.start_pos.pos_lnum
+    (position.start_pos.pos_cnum - position.start_pos.pos_bol)
+    position.end_pos.pos_lnum
+    (position.end_pos.pos_cnum - position.end_pos.pos_bol)
+    msg
+;;
+
 let symbolGenerator =
   let counter = ref 0 in
   fun name ->
