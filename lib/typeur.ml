@@ -81,7 +81,6 @@ let rec unify ls =
   match ls with
   | [] -> []
   | { left; right } :: tail ->
-    print_newline ();
     (match left.tpre, right.tpre with
      | leftT, rightT when leftT = rightT -> unify tail
      | TVar x, _ when not (occurCheck x right) -> unify (substituteAll x right tail)
