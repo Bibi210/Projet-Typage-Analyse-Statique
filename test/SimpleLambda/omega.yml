@@ -1,0 +1,5 @@
+titre: "Omega Test"
+description: "Omega function not allowed"
+prog: "((fun x ->(x x) ) (fun x -> (x x)))"
+typeur: false
+IO: []

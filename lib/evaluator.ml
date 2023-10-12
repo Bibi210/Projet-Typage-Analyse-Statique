@@ -2,6 +2,18 @@ open Ast
 open Helpers
 module Env = Map.Make (String)
 
+type eval_errors =
+  | NotFunction of expr
+  | Unbound of variable
+
+exception InternalError of eval_errors
+
+exception
+  EvalError of
+    { message : string
+    ; location : Helpers.position
+    }
+
 let alphaConverter expr =
   let changeVarId oldVar newid = { oldVar with id = newid } in
   let rec alphaConverter' expr env =
@@ -45,11 +57,19 @@ let betaReduce e =
          Prettyprinter.print_prog expr;
          betaReduce' (substitute body varg.id carg)
        | _ ->
-         let func = betaReduce' func in
+         let func =
+           match betaReduce' func with
+           | x when x = func -> raise (InternalError (NotFunction func))
+           | x -> x
+         in
          let carg = betaReduce' carg in
          betaReduce' (writeConvertion (App { func; carg })))
     | _ -> expr
   in
   let e = alphaConverter e in
-  Prettyprinter.print_prog (betaReduce' e)
+  try betaReduce' e with
+  | InternalError (NotFunction e) ->
+    raise (EvalError { message = "Not a function"; location = e.epos })
+  | InternalError (Unbound v) ->
+    raise (EvalError { message = "Unbound variable"; location = v.vpos })
 ;;

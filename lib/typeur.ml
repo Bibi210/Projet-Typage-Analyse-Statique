@@ -12,10 +12,10 @@ exception
   TypingError of
     { message : string
     ; location : Helpers.position
+    ; equation : string
     }
 
 let generateTVar pos = { tpos = pos; tpre = TVar (symbolGenerator "tvar") }
-let unboudTVar pos = { tpos = pos; tpre = TVar (symbolGenerator "Unbound") }
 
 let generateTypeEquations tree =
   let rec generateEquation' node target env =
@@ -27,7 +27,7 @@ let generateTypeEquations tree =
     | Var x ->
       [ (match Env.find_opt x.id env with
          | Some t -> { left = target; right = t }
-         | None -> { left = target; right = unboudTVar node.epos })
+         | None -> { left = target; right = raise (InternalError (Unbound x)) })
       ]
     | Lambda { varg; body } ->
       let targ = generateTVar node.epos in
@@ -81,9 +81,6 @@ let rec unify ls =
   match ls with
   | [] -> []
   | { left; right } :: tail ->
-    print_string "\nStep unify : ";
-    Prettyprinter.print_equation { left; right };
-    Prettyprinter.print_equation_list ls;
     print_newline ();
     (match left.tpre, right.tpre with
      | leftT, rightT when leftT = rightT -> unify tail
@@ -103,7 +100,12 @@ let infer tree =
   | InternalError (Unification a) ->
     raise
       (TypingError
-         { message = Prettyprinter.string_of_equation a; location = a.left.tpos })
+         { message = Prettyprinter.string_of_equation a
+         ; location = a.left.tpos
+         ; equation = Prettyprinter.string_of_equation_list (generateTypeEquations tree)
+         })
   | InternalError (Unbound v) ->
-    raise (TypingError { message = "Unbound variable " ^ v.id; location = v.vpos })
+    raise
+      (TypingError
+         { message = "Unbound variable " ^ v.id; location = v.vpos; equation = "" })
 ;;

@@ -1,2 +1,3 @@
 (test
- (name ProjetTAS))
+ (name testing)
+ (libraries yaml ProjetTAS))

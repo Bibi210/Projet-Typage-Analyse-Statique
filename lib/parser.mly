@@ -3,9 +3,8 @@
   open Helpers
 
   let position start endd = {
-  start_pos = start;
-
-  end_pos = endd;
+    start_pos = start;
+    end_pos = endd;
   }
   let func_curryfy args body =
     List.fold_right

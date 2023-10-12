@@ -11,8 +11,7 @@ let err msg pos =
     "Error on line %d col %d: %s.\n"
     pos.pos_lnum
     (pos.pos_cnum - pos.pos_bol)
-    msg;
-  exit 1
+    msg
 ;;
 
 (*For error messages*)
@@ -30,5 +29,5 @@ let symbolGenerator =
   let counter = ref 0 in
   fun name ->
     incr counter;
-    Printf.sprintf "%s%d" name !counter
+    Printf.sprintf "%s_%d" name !counter
 ;;

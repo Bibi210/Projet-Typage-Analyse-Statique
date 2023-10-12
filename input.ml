@@ -1,1 +1,1 @@
-a b c
+((fun x ->(x x) ) (fun x -> (x x)))

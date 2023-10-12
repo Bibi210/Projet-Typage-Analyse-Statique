@@ -1,5 +1,7 @@
 open Format
 open Ast
+open Lexing
+open Helpers
 
 let fmt_string = pp_print_string
 let fmt_variable fmt { id; _ } = pp_print_string fmt id
@@ -50,13 +52,52 @@ let nodeFmt_expr fmt expr =
   | None -> nodeFmt_pre_expr fmt expr
 ;;
 
+let fmt_error fmt msg pos =
+  fprintf
+    fmt
+    "Error on line %d col %d: %s.\n"
+    pos.pos_lnum
+    (pos.pos_cnum - pos.pos_bol)
+    msg
+;;
+
+let print_error msg pos = fmt_error Format.err_formatter msg pos
+
+let string_of_error msg pos =
+  fmt_error Format.str_formatter msg pos;
+  Format.flush_str_formatter ()
+;;
+
+let fmt_error_start_end fmt msg pos =
+  fprintf
+    fmt
+    "Error from line %d col %d to line %d col %d: \n  %s.\n"
+    pos.start_pos.pos_lnum
+    (pos.start_pos.pos_cnum - pos.start_pos.pos_bol)
+    pos.end_pos.pos_lnum
+    (pos.end_pos.pos_cnum - pos.end_pos.pos_bol)
+    msg
+;;
+
+let string_of_error_start_end msg pos =
+  fmt_error_start_end Format.str_formatter msg pos;
+  Format.flush_str_formatter ()
+;;
+
+let print_error_start_end msg pos = fmt_error_start_end Format.err_formatter msg pos
+
 let string_of_expr expr =
   fmt_expr Format.str_formatter expr;
-  Format.flush_str_formatter
+  Format.flush_str_formatter ()
 ;;
 
 let string_of_equation eq =
   fmt_equation Format.str_formatter eq;
+  Format.flush_str_formatter ()
+;;
+
+let string_of_equation_list eqls =
+  fmt_equation_list Format.str_formatter eqls;
   Format.flush_str_formatter ()
 ;;
 
