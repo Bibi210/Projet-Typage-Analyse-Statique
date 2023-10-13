@@ -3,7 +3,9 @@ type variable =
   ; vpos : Helpers.position
   }
 
-type ctype = Nat
+type ctype =
+  | TNat
+  | TInt
 
 type etype =
   { tpre : pre_type
@@ -17,6 +19,8 @@ and pre_type =
       }
   | TVar of string
   | TConst of ctype
+
+type econst = Int of int
 
 type expr =
   { epre : pre_expr
@@ -34,6 +38,17 @@ and pre_expr =
       ; body : expr
       }
   | Var of variable
+  | Const of econst
+  | If of
+      { cond : expr
+      ; tbranch : expr
+      ; fbranch : expr
+      }
+  | Let of
+      { varg : variable
+      ; init : expr
+      ; body : expr
+      }
 
 type prog = expr
 

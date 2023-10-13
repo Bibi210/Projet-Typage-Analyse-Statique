@@ -15,9 +15,41 @@ exception
     ; equation : string
     }
 
+let occurCheck var typ =
+  let rec occurCheck' var typ =
+    match typ.tpre with
+    | TVar x when x = var -> true
+    | TLambda { targ; tbody } -> occurCheck' var targ || occurCheck' var tbody
+    | _ -> false
+  in
+  occurCheck' var typ
+;;
+
+let rec substitute var newtyp oldtyp =
+  match oldtyp.tpre with
+  | TVar x when x = var -> newtyp
+  | TLambda { targ; tbody } ->
+    let targ' = substitute var newtyp targ in
+    let tbody' = substitute var newtyp tbody in
+    { tpos = oldtyp.tpos; tpre = TLambda { targ = targ'; tbody = tbody' } }
+  | _ -> oldtyp
+;;
+
+let substituteAll var typ equations =
+  List.map
+    (fun { left; right } ->
+      { left = substitute var typ left; right = substitute var typ right })
+    equations
+;;
+
 let generateTVar pos = { tpos = pos; tpre = TVar (symbolGenerator "tvar") }
 
-let generateTypeEquations tree =
+let generateConstTypeEquations node pos target =
+  match node with
+  | Int _ -> [ { left = target; right = { tpos = pos; tpre = TConst TInt } } ]
+;;
+
+let rec generateTypeEquations tree =
   let rec generateEquation' node target env =
     (match node.etyp_annotation with
      | Some t -> [ { left = target; right = t } ]
@@ -46,38 +78,17 @@ let generateTypeEquations tree =
       in
       let eq2 = generateEquation' carg targ env in
       eq1 @ eq2
+    | Const c -> generateConstTypeEquations c node.epos target
+    | If { cond; tbranch; fbranch } ->
+      let eq1 = generateEquation' cond { tpos = node.epos; tpre = TConst TInt } env in
+      let eq2 = generateEquation' tbranch target env in
+      let eq3 = generateEquation' fbranch target env in
+      eq1 @ eq2 @ eq3
+    | _ -> failwith "Not implemented"
   in
   generateEquation' tree (generateTVar tree.epos) Env.empty
-;;
 
-let occurCheck var typ =
-  let rec occurCheck' var typ =
-    match typ.tpre with
-    | TVar x when x = var -> true
-    | TLambda { targ; tbody } -> occurCheck' var targ || occurCheck' var tbody
-    | _ -> false
-  in
-  occurCheck' var typ
-;;
-
-let rec substitute var newtyp oldtyp =
-  match oldtyp.tpre with
-  | TVar x when x = var -> newtyp
-  | TLambda { targ; tbody } ->
-    let targ' = substitute var newtyp targ in
-    let tbody' = substitute var newtyp tbody in
-    { tpos = oldtyp.tpos; tpre = TLambda { targ = targ'; tbody = tbody' } }
-  | _ -> oldtyp
-;;
-
-let substituteAll var typ equations =
-  List.map
-    (fun { left; right } ->
-      { left = substitute var typ left; right = substitute var typ right })
-    equations
-;;
-
-let rec unify ls =
+and unify ls =
   match ls with
   | [] -> []
   | { left; right } :: tail ->

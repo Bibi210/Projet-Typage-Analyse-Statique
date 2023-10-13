@@ -1,0 +1,6 @@
+titre: "Else Test"
+description: "Else then Reduce Test"
+prog: "if 1 then 32 else (fun x -> x 64)"
+typeur: true
+IO:
+  - "64"

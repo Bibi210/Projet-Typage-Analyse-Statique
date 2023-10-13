@@ -31,6 +31,23 @@ let alphaConverter expr =
     | App { func; carg } ->
       writeConvertion
         (App { func = alphaConverter' func env; carg = alphaConverter' carg env })
+    | Const _ -> expr
+    | If { cond; tbranch; fbranch } ->
+      writeConvertion
+        (If
+           { cond = alphaConverter' cond env
+           ; tbranch = alphaConverter' tbranch env
+           ; fbranch = alphaConverter' fbranch env
+           })
+    | Let { varg; init; body } ->
+      let new_id = symbolGenerator varg.id in
+      let new_env = Env.add varg.id new_id env in
+      writeConvertion
+        (Let
+           { varg = changeVarId varg new_id
+           ; init = alphaConverter' init env
+           ; body = alphaConverter' body new_env
+           })
   in
   alphaConverter' expr Env.empty
 ;;
@@ -43,6 +60,16 @@ let substitute expr id other =
     | Lambda { varg; body } -> writeConvertion (Lambda { varg; body = substitute' body })
     | App { func; carg } ->
       writeConvertion (App { func = substitute' func; carg = substitute' carg })
+    | Const _ -> expr
+    | If { cond; tbranch; fbranch } ->
+      writeConvertion
+        (If
+           { cond = substitute' cond
+           ; tbranch = substitute' tbranch
+           ; fbranch = substitute' fbranch
+           })
+    | Let { varg; init; body } ->
+      writeConvertion (Let { varg; init = substitute' init; body = substitute' body })
   in
   substitute' expr
 ;;
@@ -53,9 +80,7 @@ let betaReduce e =
     match expr.epre with
     | App { func; carg } ->
       (match func.epre with
-       | Lambda { varg; body } ->
-         Prettyprinter.print_prog expr;
-         betaReduce' (substitute body varg.id carg)
+       | Lambda { varg; body } -> betaReduce' (substitute body varg.id carg)
        | _ ->
          let func =
            match betaReduce' func with
@@ -64,6 +89,15 @@ let betaReduce e =
          in
          let carg = betaReduce' carg in
          betaReduce' (writeConvertion (App { func; carg })))
+    | If { cond; tbranch; fbranch } ->
+      (match cond.epre with
+       | Const (Int 0) -> betaReduce' tbranch
+       | Const (Int 1) -> betaReduce' fbranch
+       | _ ->
+         let cond = betaReduce' cond in
+         let tbranch = betaReduce' tbranch in
+         let fbranch = betaReduce' fbranch in
+         betaReduce' (writeConvertion (If { cond; tbranch; fbranch })))
     | _ -> expr
   in
   let e = alphaConverter e in

@@ -3,7 +3,7 @@ open ProjetTAS
 
 let dirtyPrefix = "../../../"
 let testDir = dirtyPrefix ^ "test/"
-let directories = List.map (fun elem -> testDir ^ elem ^ "/") [ "SimpleLambda" ]
+let directories = List.map (fun elem -> testDir ^ elem ^ "/") [ "SimpleLambda";"PCF" ]
 
 type test =
   { filepath : string

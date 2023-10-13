@@ -12,7 +12,8 @@ let fmt_with_semicolon pp fmt l = fmt_with_string "; " pp fmt l
 let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 
 let fmt_const fmt = function
-  | Nat -> fmt_string fmt "Nat"
+  | TNat -> fmt_string fmt "nat"
+  | TInt -> fmt_string fmt "int"
 ;;
 
 let rec fmt_pre_type fmt ty =
@@ -26,11 +27,29 @@ let fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right
 let fmt_equation_list = fmt_with_comma fmt_equation
 
+let fmt_const_expr fmt expr =
+  match expr with
+  | Int n -> fprintf fmt "%d" n
+;;
+
 let rec fmt_pre_expr fmt expr =
   match expr.epre with
   | Var v -> fmt_variable fmt v
   | App x -> fprintf fmt "(%a %a)" fmt_expr x.func fmt_expr x.carg
   | Lambda x -> fprintf fmt "fun %a -> %a" fmt_variable x.varg fmt_expr x.body
+  | Const x -> fprintf fmt "%a" fmt_const_expr x
+  | If x ->
+    fprintf
+      fmt
+      "if %a then %a else %a"
+      fmt_expr
+      x.cond
+      fmt_expr
+      x.tbranch
+      fmt_expr
+      x.fbranch
+  | Let x ->
+    fprintf fmt "let %a = %a in %a" fmt_variable x.varg fmt_expr x.init fmt_expr x.body
 
 and fmt_expr fmt expr =
   match expr.etyp_annotation with
@@ -44,6 +63,27 @@ let rec nodeFmt_pre_expr fmt expr =
   | App x -> fprintf fmt "(App%a,%a)" nodeFmt_pre_expr x.func nodeFmt_pre_expr x.carg
   | Lambda x ->
     fprintf fmt "(Lambda %a -> %a)" fmt_variable x.varg nodeFmt_pre_expr x.body
+  | Const x -> fprintf fmt "(Const %a)" fmt_const_expr x
+  | If x ->
+    fprintf
+      fmt
+      "(If %a,%a,%a)"
+      nodeFmt_pre_expr
+      x.cond
+      nodeFmt_pre_expr
+      x.tbranch
+      nodeFmt_pre_expr
+      x.fbranch
+  | Let x ->
+    fprintf
+      fmt
+      "(Let %a,%a,%a)"
+      fmt_variable
+      x.varg
+      nodeFmt_pre_expr
+      x.init
+      nodeFmt_pre_expr
+      x.body
 ;;
 
 let nodeFmt_expr fmt expr =

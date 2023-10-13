@@ -31,10 +31,11 @@
 %}
 %token EOF
 %token LOpenPar LClosePar LColon
+%token <int>Lint
 %token <string> LBasicIdent LVarType
 
 %token LSimpleArrow
-%token LFun
+%token LFun LIf LThen LElse
 
 %token <Ast.pre_type>LParseType
 %start <prog> prog
@@ -74,7 +75,14 @@ pre_expr:
     | LOpenPar ; func = expr ; args = nonempty_list(expr) ; LClosePar {
         (call_curryify func args).epre
     }
-    
+    | c = const { Const c }
+    | LIf ; cond = expr ; LThen ; tbranch = expr ; LElse ; fbranch = expr {
+            If { cond; tbranch; fbranch };
+    }
+
+const:
+    | i = Lint { Int i }
+
 variable:
     | var = LBasicIdent {
         {
