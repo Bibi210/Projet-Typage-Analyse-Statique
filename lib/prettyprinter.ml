@@ -51,6 +51,7 @@ let rec fmt_pre_expr fmt expr =
       x.fbranch
   | Let x ->
     fprintf fmt "let %a = %a in %a" fmt_variable x.varg fmt_expr x.init fmt_expr x.body
+  | Fix x -> fprintf fmt "fix %a %a" fmt_variable x.varg fmt_expr x.body
 
 and fmt_expr fmt expr =
   match expr.etyp_annotation with
@@ -86,25 +87,25 @@ let rec fmt_pre_expr_without_type fmt expr =
       x.init
       fmt_expr_without_type
       x.body
+  | Fix x -> fprintf fmt "fix %a %a" fmt_variable x.varg fmt_expr_without_type x.body
 
 and fmt_expr_without_type fmt expr = fmt_pre_expr_without_type fmt expr
 
 let rec nodeFmt_pre_expr fmt expr =
-  match expr.epre with
-  | Var v -> fprintf fmt "(Var %a)" fmt_string v
-  | App x -> fprintf fmt "(App%a,%a)" nodeFmt_pre_expr x.func nodeFmt_pre_expr x.carg
-  | Lambda x ->
-    fprintf fmt "(Lambda %a -> %a)" fmt_variable x.varg nodeFmt_pre_expr x.body
-  | Const x -> fprintf fmt "(Const %a)" fmt_const_expr x
+  match expr with
+  | Var v -> fprintf fmt "Var %a" fmt_string v
+  | App x -> fprintf fmt "App%a,%a" nodeFmt_expr x.func nodeFmt_expr x.carg
+  | Lambda x -> fprintf fmt "Lambda %a -> %a" fmt_variable x.varg nodeFmt_expr x.body
+  | Const x -> fprintf fmt "Const %a" fmt_const_expr x
   | If x ->
     fprintf
       fmt
       "(If %a,%a,%a)"
-      nodeFmt_pre_expr
+      nodeFmt_expr
       x.cond
-      nodeFmt_pre_expr
+      nodeFmt_expr
       x.tbranch
-      nodeFmt_pre_expr
+      nodeFmt_expr
       x.fbranch
   | Let x ->
     fprintf
@@ -112,16 +113,16 @@ let rec nodeFmt_pre_expr fmt expr =
       "(Let %a,%a,%a)"
       fmt_variable
       x.varg
-      nodeFmt_pre_expr
+      nodeFmt_expr
       x.init
-      nodeFmt_pre_expr
+      nodeFmt_expr
       x.body
-;;
+  | Fix x -> fprintf fmt "(Fix %a %a)" fmt_variable x.varg nodeFmt_expr x.body
 
-let nodeFmt_expr fmt expr =
+and nodeFmt_expr fmt expr =
   match expr.etyp_annotation with
-  | Some ty -> fprintf fmt "(%a : %a)" nodeFmt_pre_expr expr fmt_type ty
-  | None -> nodeFmt_pre_expr fmt expr
+  | Some ty -> fprintf fmt "(%a : %a)" nodeFmt_pre_expr expr.epre fmt_type ty
+  | None -> nodeFmt_pre_expr fmt expr.epre
 ;;
 
 let fmt_error fmt msg pos =

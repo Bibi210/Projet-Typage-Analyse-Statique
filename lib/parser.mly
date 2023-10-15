@@ -14,6 +14,13 @@
         body
     ;;
 
+    let recfunc_curryfy var args body =
+     {  epos = var.vpos;
+        epre = Fix { varg = var; body = func_curryfy args body }
+        ; etyp_annotation = None
+      }
+    ;;
+
     let functype_curryfy args body =
     List.fold_right
         (fun a acc -> { tpre = TLambda { targ = a; tbody = acc }; tpos = a.tpos })
@@ -35,7 +42,7 @@
 %token <string> LBasicIdent LVarType
 
 %token LSimpleArrow LEqual
-%token LFun LIf LThen LElse LLet LIn 
+%token LFun LIf LThen LElse LLet LIn  LRec
 
 
 %token <Ast.pre_type>LParseType
@@ -83,6 +90,11 @@ pre_expr:
     | LLet; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; LIn ;content = expr{
         Let {
             varg ; init = func_curryfy args func_body;body = content
+        }
+    }
+    | LLet; LRec; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; LIn ;content = expr{
+        Let {
+            varg ; init = recfunc_curryfy varg args func_body;body = content
         }
     }
     | LLet; varg = variable; LEqual; init = expr; LIn ;body = expr{

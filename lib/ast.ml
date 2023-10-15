@@ -53,6 +53,10 @@ and pre_expr =
       ; init : expr
       ; body : expr
       }
+  | Fix of
+      { varg : variable
+      ; body : expr
+      }
 
 type prog = expr
 

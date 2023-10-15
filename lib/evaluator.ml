@@ -3,8 +3,9 @@ open Helpers
 module Env = Map.Make (String)
 
 type eval_errors =
-  | TyperCheckFAIL of expr
+  | TyperCheck of expr
   | Unbound of variable
+  | LambdaReduction of expr (* When the body of the function is only Fix of itself *)
 
 exception InternalError of eval_errors
 
@@ -36,7 +37,8 @@ let rec alphaReverser expr =
            { varg = renameVarId varg
            ; init = alphaReverser init
            ; body = alphaReverser body
-           })
+           }
+       | Fix { varg; body } -> Fix { varg = renameVarId varg; body = alphaReverser body })
   }
 ;;
 
@@ -74,6 +76,10 @@ let alphaConverter expr =
            ; init = alphaConverter' init env
            ; body = alphaConverter' body new_env
            })
+    | Fix { varg; body } ->
+      let new_id = symbolGenerator varg.id in
+      writeConvertion
+        (Fix { varg = changeVarId varg new_id; body = alphaConverter' body env })
   in
   alphaConverter' expr Env.empty
 ;;
@@ -90,6 +96,7 @@ let rec substitute id other expr =
     writeConvertion (If { cond = fix cond; tbranch = fix tbranch; fbranch = fix fbranch })
   | Let { varg; init; body } ->
     writeConvertion (Let { varg; init = fix init; body = fix body })
+  | Fix { varg; body } -> writeConvertion (Fix { varg; body = fix body })
 ;;
 
 let betaReduce e =
@@ -102,7 +109,7 @@ let betaReduce e =
        | _ ->
          let func =
            match betaReduce' func with
-           | x when x = func -> raise (InternalError (TyperCheckFAIL func))
+           | x when x = func -> raise (InternalError (LambdaReduction func))
            | x -> x
          in
          let carg = betaReduce' carg in
@@ -113,18 +120,21 @@ let betaReduce e =
        | Const (Int _) -> betaReduce' fbranch
        | _ ->
          (match betaReduce' cond with
-          | x when x = cond -> raise (InternalError (TyperCheckFAIL cond))
+          | x when x = cond -> raise (InternalError (TyperCheck cond))
           | cond -> betaReduce' (writeConvertion (If { cond; tbranch; fbranch }))))
     | Let { varg; init; body } ->
       let init = betaReduce' init in
       let body = betaReduce' (substitute varg.id init body) in
       betaReduce' body
+    | Fix { varg; body } -> betaReduce' (substitute varg.id expr body)
     | Lambda _ | Const _ | Var _ -> expr
   in
   let e = alphaConverter e in
   try alphaReverser (betaReduce' e) with
-  | InternalError (TyperCheckFAIL e) ->
-    raise (EvalError { message = "Not a function"; location = e.epos })
+  | InternalError (TyperCheck e) ->
+    raise (EvalError { message = "Type Checking Leak"; location = e.epos })
   | InternalError (Unbound v) ->
     raise (EvalError { message = "Unbound variable"; location = v.vpos })
+  | InternalError (LambdaReduction e) ->
+    raise (EvalError { message = "Lambda Reduction Failure"; location = e.epos })
 ;;

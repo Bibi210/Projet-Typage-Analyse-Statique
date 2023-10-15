@@ -32,6 +32,7 @@ rule token = parse
 | ':' {LColon}
 | "if" {LIf}
 | "let" {LLet}
+| "rec" {LRec}
 | "=" {LEqual}
 | "in" {LIn}
 | "then" {LThen}

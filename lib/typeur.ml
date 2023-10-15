@@ -4,7 +4,8 @@ module Env = Map.Make (String)
 
 type typing_errors =
   | Unification of equation
-  | Unbound of variable
+  | Unbound of variable 
+  [@deriving show]
 
 exception InternalError of typing_errors
 
@@ -109,7 +110,12 @@ let rec generateTypeEquations tree target =
      | Let { varg; init; body } ->
        let instancedType = infer init in
        let env' = Env.add varg.id (generateAny varg.id instancedType tree.epos) env in
-       generateEquation' body target env')
+       generateEquation' body target env'
+     | Fix { varg; body } ->
+       let tbody = generateTVar "recbody" node.epos in
+       let env' = Env.add varg.id tbody env in
+       let eq1 = generateEquation' body tbody env' in
+       [ { left = target; right = tbody } ] @ eq1)
     @
     match node.etyp_annotation with
     | Some t -> [ { left = t; right = target } ]

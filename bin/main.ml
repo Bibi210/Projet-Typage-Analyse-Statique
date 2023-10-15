@@ -15,12 +15,13 @@ let () =
     (* Print the AST *)
     print_endline "\nAST:";
     Prettyprinter.print_prog output;
-    (* Print the type equations *)
-    let equations = Typeur.generateProgTypeEquation output in
-    Prettyprinter.print_equation_list equations;
     (* Print the type inference *)
     print_endline "\nType inference:";
     Prettyprinter.print_type (Typeur.infer output);
+    (* Print the type equations *)
+    print_endline "\nType equations:";
+    let equations = Typeur.generateProgTypeEquation output in
+    Prettyprinter.print_equation_list equations;
     (* Print the evaluation *)
     print_endline "\nEvaluation:";
     let evaluated = Evaluator.betaReduce output in
@@ -29,4 +30,5 @@ let () =
   | Lexer.LexingError s -> Prettyprinter.print_error s.msg s.pos
   | Parser.Error -> Prettyprinter.print_error "Syntax error" (Lexing.lexeme_start_p buf)
   | Typeur.TypingError s -> Prettyprinter.print_error_start_end s.message s.location
+  | Evaluator.EvalError s -> Prettyprinter.print_error_start_end s.message s.location
 ;;

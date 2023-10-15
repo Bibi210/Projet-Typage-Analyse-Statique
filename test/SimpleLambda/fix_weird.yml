@@ -1,0 +1,6 @@
+titre: "Recursion in itself"
+description: "ADV Recursion Not Working"
+prog: "let rec baserec a = if 1 then baserec else baserec in 0"
+typeur: false
+IO:
+  []
