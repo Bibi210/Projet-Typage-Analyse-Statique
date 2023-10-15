@@ -1,5 +1,4 @@
 open ProjetTAS
-open Helpers
 
 let () =
   if Array.length Sys.argv != 2
@@ -16,16 +15,15 @@ let () =
     (* Print the AST *)
     print_endline "AST:";
     Prettyprinter.print_prog output;
+    Typeur.infer output;
     let equations = Typeur.generateTypeEquations output in
     Prettyprinter.print_equation_list equations;
-    (* Print the type equations *)
-    Typeur.infer output;
     (* Print the evaluation *)
     print_endline "Evaluation:";
     let _evaluated = Evaluator.betaReduce output in
-    ()
+    Prettyprinter.print_prog _evaluated;
   with
-  | Lexer.LexingError s -> err s.msg s.pos
-  | Parser.Error -> err "Syntax error" (Lexing.lexeme_start_p buf)
-  | Typeur.TypingError s -> errWithPosition s.message s.location
+  | Lexer.LexingError s -> Prettyprinter.print_error s.msg s.pos
+  | Parser.Error -> Prettyprinter.print_error "Syntax error" (Lexing.lexeme_start_p buf)
+  | Typeur.TypingError s -> Prettyprinter.print_error_start_end s.message s.location
 ;;

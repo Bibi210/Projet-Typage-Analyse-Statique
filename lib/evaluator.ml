@@ -14,6 +14,32 @@ exception
     ; location : Helpers.position
     }
 
+let rec alphaReverser expr =
+  let renameVarId oldVar = { oldVar with id = getNameFromSymbol oldVar.id } in
+  { expr with
+    epre =
+      (match expr.epre with
+       | Var x -> Var (renameVarId x)
+       | Lambda { varg; body } ->
+         Lambda { varg = renameVarId varg; body = alphaReverser body }
+       | App { func; carg } ->
+         App { func = alphaReverser func; carg = alphaReverser carg }
+       | Const _ -> expr.epre
+       | If { cond; tbranch; fbranch } ->
+         If
+           { cond = alphaReverser cond
+           ; tbranch = alphaReverser tbranch
+           ; fbranch = alphaReverser fbranch
+           }
+       | Let { varg; init; body } ->
+         Let
+           { varg = renameVarId varg
+           ; init = alphaReverser init
+           ; body = alphaReverser body
+           })
+  }
+;;
+
 let alphaConverter expr =
   let changeVarId oldVar newid = { oldVar with id = newid } in
   let rec alphaConverter' expr env =
@@ -101,7 +127,7 @@ let betaReduce e =
     | _ -> expr
   in
   let e = alphaConverter e in
-  try betaReduce' e with
+  try alphaReverser (betaReduce' e) with
   | InternalError (NotFunction e) ->
     raise (EvalError { message = "Not a function"; location = e.epos })
   | InternalError (Unbound v) ->

@@ -42,71 +42,93 @@ let substituteAll var typ equations =
     equations
 ;;
 
-let generateTVar pos = { tpos = pos; tpre = TVar (symbolGenerator "tvar") }
+let generateTVar str pos = { tpos = pos; tpre = TVar (symbolGenerator str) }
+let unifyTarget progPos = { tpos = progPos; tpre = TVar "%!target" }
 
 let generateConstTypeEquations node pos target =
   match node with
   | Int _ -> [ { left = target; right = { tpos = pos; tpre = TConst TInt } } ]
 ;;
 
-let rec generateTypeEquations tree =
+let (* rec *) generateTypeEquations tree =
   let rec generateEquation' node target env =
-    (match node.etyp_annotation with
-     | Some t -> [ { left = target; right = t } ]
-     | None -> [])
+    (match node.epre with
+     | Var x ->
+       [ (match Env.find_opt x.id env with
+          | Some t -> { left = target; right = t }
+          | None -> { left = target; right = raise (InternalError (Unbound x)) })
+       ]
+     | Lambda { varg; body } ->
+       let targ = generateTVar varg.id node.epos in
+       let tbody = generateTVar "body" node.epos in
+       let env' = Env.add varg.id targ env in
+       let eq1 = generateEquation' body tbody env' in
+       { left = target; right = { tpos = node.epos; tpre = TLambda { targ; tbody } } }
+       :: eq1
+     | App { func; carg } ->
+       let targ = generateTVar "call" node.epos in
+       let eq1 =
+         generateEquation'
+           func
+           { tpos = node.epos; tpre = TLambda { targ; tbody = target } }
+           env
+       in
+       let eq2 = generateEquation' carg targ env in
+       eq2 @ eq1
+     | Const c -> generateConstTypeEquations c node.epos target
+     | If { cond; tbranch; fbranch } ->
+       let eq1 = generateEquation' cond { tpos = node.epos; tpre = TConst TInt } env in
+       let eq2 = generateEquation' tbranch target env in
+       let eq3 = generateEquation' fbranch target env in
+       eq1 @ eq2 @ eq3
+     | _ -> failwith "Not implemented")
     @
-    match node.epre with
-    | Var x ->
-      [ (match Env.find_opt x.id env with
-         | Some t -> { left = target; right = t }
-         | None -> { left = target; right = raise (InternalError (Unbound x)) })
-      ]
-    | Lambda { varg; body } ->
-      let targ = generateTVar node.epos in
-      let tbody = generateTVar node.epos in
-      let env' = Env.add varg.id targ env in
-      let eq1 = generateEquation' body tbody env' in
-      { left = target; right = { tpos = node.epos; tpre = TLambda { targ; tbody } } }
-      :: eq1
-    | App { func; carg } ->
-      let targ = generateTVar node.epos in
-      let eq1 =
-        generateEquation'
-          func
-          { tpos = node.epos; tpre = TLambda { targ; tbody = target } }
-          env
-      in
-      let eq2 = generateEquation' carg targ env in
-      eq1 @ eq2
-    | Const c -> generateConstTypeEquations c node.epos target
-    | If { cond; tbranch; fbranch } ->
-      let eq1 = generateEquation' cond { tpos = node.epos; tpre = TConst TInt } env in
-      let eq2 = generateEquation' tbranch target env in
-      let eq3 = generateEquation' fbranch target env in
-      eq1 @ eq2 @ eq3
-    | _ -> failwith "Not implemented"
+    match node.etyp_annotation with
+    | Some t -> [ { left = t; right = target } ]
+    | None -> []
   in
-  generateEquation' tree (generateTVar tree.epos) Env.empty
+  generateEquation' tree (unifyTarget tree.epos) Env.empty
 
 and unify ls =
-  match ls with
-  | [] -> []
-  | { left; right } :: tail ->
-    (match left.tpre, right.tpre with
-     | leftT, rightT when leftT = rightT -> unify tail
-     | TVar x, _ when not (occurCheck x right) -> unify (substituteAll x right tail)
-     | _, TVar x when not (occurCheck x left) -> unify (substituteAll x left tail)
-     | TLambda { targ; tbody }, TLambda { targ = targ'; tbody = tbody' } ->
-       unify ({ left = targ; right = targ' } :: { left = tbody; right = tbody' } :: tail)
-     | _ -> raise (InternalError (Unification { left; right })))
+  let rec unify' ls result =
+    match ls with
+    | [] -> result
+    | { left; right } :: tail ->
+      let result = { left; right } :: result in
+      (match left.tpre, right.tpre with
+       | leftT, rightT when leftT = rightT -> unify' tail result
+       | TVar x, _ when not (occurCheck x right) ->
+         unify' (substituteAll x right tail) result
+       | _, TVar x when not (occurCheck x left) ->
+         unify' (substituteAll x left tail) result
+       | TLambda { targ; tbody }, TLambda { targ = targ'; tbody = tbody' } ->
+         unify'
+           ({ left = targ; right = targ' } :: { left = tbody; right = tbody' } :: tail)
+           result
+       | _ -> raise (InternalError (Unification { left; right })))
+  in
+  let rec findResult result =
+    match result with
+    | [] ->
+      raise
+        (TypingError
+           { message = "Cannot find type for %!target"
+           ; location = Helpers.dummy_position
+           ; equation = ""
+           })
+    | { left; right } :: tail ->
+      (match left.tpre, right.tpre with
+       | TVar x, _ when x = "%!target" -> right
+       | _, TVar x when x = "%!target" -> left
+       | TVar x, _ -> findResult (substituteAll x right tail)
+       | _, TVar x -> findResult (substituteAll x left tail)
+       | _ -> findResult tail)
+  in
+  findResult (unify' ls [])
 ;;
 
 let infer tree =
-  try
-    let equations = generateTypeEquations tree in
-    let _unified = unify equations in
-    ()
-  with
+  try unify (generateTypeEquations tree) with
   | InternalError (Unification a) ->
     raise
       (TypingError

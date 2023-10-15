@@ -1,6 +1,6 @@
-titre: "Else Test"
+titre: "Else"
 description: "Else then Reduce Test"
-prog: "if 1 then 32 else (fun x -> x 64)"
+prog: "if 1 then (fun a b -> (b : int)) else (fun x -> (x: ('b -> 'a) ))"
 typeur: true
 IO:
-  - "64"
+  - "(fun x -> x)"

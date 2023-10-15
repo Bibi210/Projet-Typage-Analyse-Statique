@@ -5,7 +5,7 @@ exception YamlParsingError of string
 let printYaml t =
   match to_string t with
   | Ok x -> x
-  | Error (`Msg e) -> failwith ("Can't export to string : " ^ e)
+  | Error (`Msg e) -> raise (YamlParsingError ("Can't export to string : " ^ e))
 ;;
 
 let rec getValue file k =
@@ -32,9 +32,9 @@ let getList f = function
 let parse f =
   let f = open_in f in
   let s = really_input_string f (in_channel_length f) in
-    close_in f;
-    match of_string (s) with
-    | Ok (`O x) -> x
-    | Error (`Msg e) -> raise (YamlParsingError e)
-    | _ -> raise (YamlParsingError "Not an assoc list")
+  close_in f;
+  match of_string s with
+  | Ok (`O x) -> x
+  | Error (`Msg e) -> raise (YamlParsingError e)
+  | _ -> raise (YamlParsingError "Not an assoc list")
 ;;

@@ -1,4 +1,4 @@
-titre: "If branching Test"
+titre: "If"
 description: "Just an if"
 prog: "if 0 then 32 else 64"
 typeur: true

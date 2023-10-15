@@ -1,5 +1,5 @@
-titre: "App Test"
+titre: "Simple Test"
 description: "Simple Reduce Test"
 prog: "(fun x -> x (fun y -> y))"
 typeur: true
-IO: [fun y_13 -> y_13]
+IO: ["(fun y -> y)"]

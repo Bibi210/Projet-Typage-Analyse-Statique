@@ -21,9 +21,10 @@ let rec fmt_pre_type fmt ty =
   | TVar v -> fmt_string fmt v
   | TLambda x -> fprintf fmt "(%a -> %a)" fmt_pre_type x.targ fmt_pre_type x.tbody
   | TConst x -> fprintf fmt "%a" fmt_const x
+  | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_pre_type x.polytype
 ;;
 
-let fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty
+let fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right
 let fmt_equation_list = fmt_with_comma fmt_equation
 
@@ -36,7 +37,7 @@ let rec fmt_pre_expr fmt expr =
   match expr.epre with
   | Var v -> fmt_variable fmt v
   | App x -> fprintf fmt "(%a %a)" fmt_expr x.func fmt_expr x.carg
-  | Lambda x -> fprintf fmt "fun %a -> %a" fmt_variable x.varg fmt_expr x.body
+  | Lambda x -> fprintf fmt "(fun %a -> %a)" fmt_variable x.varg fmt_expr x.body
   | Const x -> fprintf fmt "%a" fmt_const_expr x
   | If x ->
     fprintf
@@ -56,6 +57,37 @@ and fmt_expr fmt expr =
   | Some ty -> fprintf fmt "(%a : %a)" fmt_pre_expr expr fmt_type ty
   | None -> fmt_pre_expr fmt expr
 ;;
+
+let rec fmt_pre_expr_without_type fmt expr =
+  match expr.epre with
+  | Var v -> fmt_variable fmt v
+  | App x ->
+    fprintf fmt "(%a %a)" fmt_expr_without_type x.func fmt_expr_without_type x.carg
+  | Lambda x ->
+    fprintf fmt "(fun %a -> %a)" fmt_variable x.varg fmt_expr_without_type x.body
+  | Const x -> fprintf fmt "%a" fmt_const_expr x
+  | If x ->
+    fprintf
+      fmt
+      "if %a then %a else %a"
+      fmt_expr_without_type
+      x.cond
+      fmt_expr_without_type
+      x.tbranch
+      fmt_expr_without_type
+      x.fbranch
+  | Let x ->
+    fprintf
+      fmt
+      "let %a = %a in %a"
+      fmt_variable
+      x.varg
+      fmt_expr_without_type
+      x.init
+      fmt_expr_without_type
+      x.body
+
+and fmt_expr_without_type fmt expr = fmt_pre_expr_without_type fmt expr
 
 let rec nodeFmt_pre_expr fmt expr =
   match expr.epre with
@@ -131,6 +163,11 @@ let string_of_expr expr =
   Format.flush_str_formatter ()
 ;;
 
+let string_of_prog prog =
+  fmt_expr_without_type Format.str_formatter prog;
+  Format.flush_str_formatter ()
+;;
+
 let string_of_equation eq =
   fmt_equation Format.str_formatter eq;
   Format.flush_str_formatter ()
@@ -142,7 +179,7 @@ let string_of_equation_list eqls =
 ;;
 
 let print_prog prog =
-  fmt_expr Format.std_formatter prog;
+  fmt_expr_without_type Format.std_formatter prog;
   Format.print_newline ()
 ;;
 
@@ -158,5 +195,10 @@ let print_equation eq =
 
 let print_equation_list eq_ls =
   fmt_equation_list Format.std_formatter eq_ls;
+  Format.print_newline ()
+;;
+
+let print_type ty =
+  fmt_type Format.std_formatter ty;
   Format.print_newline ()
 ;;

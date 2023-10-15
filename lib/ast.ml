@@ -19,6 +19,10 @@ and pre_type =
       }
   | TVar of string
   | TConst of ctype
+  | TAny of
+      { id : string
+      ; polytype : etype
+      }
 
 type econst = Int of int
 
