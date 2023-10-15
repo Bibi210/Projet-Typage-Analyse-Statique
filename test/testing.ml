@@ -3,7 +3,7 @@ open ProjetTAS
 
 let dirtyPrefix = "../../../"
 let testDir = dirtyPrefix ^ "test/"
-let directories = List.map (fun elem -> testDir ^ elem ^ "/") [ "SimpleLambda";"PCF" ]
+let directories = List.map (fun elem -> testDir ^ elem ^ "/") [ "SimpleLambda"; "PCF" ]
 
 type test =
   { filepath : string
@@ -53,10 +53,10 @@ let runTest test =
   let buf = Lexing.from_string test.prog in
   try
     let output = Parser.prog Lexer.token buf in
+    let _ = Typeur.infer output in
     let equation =
       Prettyprinter.string_of_equation_list (Typeur.generateProgTypeEquation output)
     in
-    let _ = Typeur.infer output in
     let ioResult = [ Prettyprinter.string_of_prog (Evaluator.betaReduce output) ] in
     { equation; evalTyping = true; ioResult }
   with
