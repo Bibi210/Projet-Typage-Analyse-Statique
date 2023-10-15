@@ -13,15 +13,18 @@ let () =
     let output = Parser.prog Lexer.token buf in
     close_in f;
     (* Print the AST *)
-    print_endline "AST:";
+    print_endline "\nAST:";
     Prettyprinter.print_prog output;
-    Typeur.infer output;
-    let equations = Typeur.generateTypeEquations output in
+    (* Print the type equations *)
+    let equations = Typeur.generateProgTypeEquation output in
     Prettyprinter.print_equation_list equations;
+    (* Print the type inference *)
+    print_endline "\nType inference:";
+    Prettyprinter.print_type (Typeur.infer output);
     (* Print the evaluation *)
-    print_endline "Evaluation:";
-    let _evaluated = Evaluator.betaReduce output in
-    Prettyprinter.print_prog _evaluated;
+    print_endline "\nEvaluation:";
+    let evaluated = Evaluator.betaReduce output in
+    Prettyprinter.print_prog evaluated
   with
   | Lexer.LexingError s -> Prettyprinter.print_error s.msg s.pos
   | Parser.Error -> Prettyprinter.print_error "Syntax error" (Lexing.lexeme_start_p buf)

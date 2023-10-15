@@ -34,8 +34,9 @@
 %token <int>Lint
 %token <string> LBasicIdent LVarType
 
-%token LSimpleArrow
-%token LFun LIf LThen LElse
+%token LSimpleArrow LEqual
+%token LFun LIf LThen LElse LLet LIn 
+
 
 %token <Ast.pre_type>LParseType
 %start <prog> prog
@@ -62,7 +63,7 @@ expr:
         }
     }
 pre_expr:
-    | v = variable ; { Var v }
+    | v = LBasicIdent ; { Var v }
     |  LFun  ; args = list(variable) ; LSimpleArrow ; body = expr   { 
         let args = if List.length args <> 0 then args 
           else [
@@ -78,6 +79,14 @@ pre_expr:
     | c = const { Const c }
     | LIf ; cond = expr ; LThen ; tbranch = expr ; LElse ; fbranch = expr {
             If { cond; tbranch; fbranch };
+    }
+    | LLet; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; LIn ;content = expr{
+        Let {
+            varg ; init = func_curryfy args func_body;body = content
+        }
+    }
+    | LLet; varg = variable; LEqual; init = expr; LIn ;body = expr{
+        Let {varg;init;body}
     }
 
 const:

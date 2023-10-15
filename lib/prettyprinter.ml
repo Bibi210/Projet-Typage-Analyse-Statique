@@ -21,10 +21,10 @@ let rec fmt_pre_type fmt ty =
   | TVar v -> fmt_string fmt v
   | TLambda x -> fprintf fmt "(%a -> %a)" fmt_pre_type x.targ fmt_pre_type x.tbody
   | TConst x -> fprintf fmt "%a" fmt_const x
-  | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_pre_type x.polytype
-;;
+  | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_type x.polytype
 
-let fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty
+and fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty
+
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right
 let fmt_equation_list = fmt_with_comma fmt_equation
 
@@ -35,7 +35,7 @@ let fmt_const_expr fmt expr =
 
 let rec fmt_pre_expr fmt expr =
   match expr.epre with
-  | Var v -> fmt_variable fmt v
+  | Var v -> fmt_string fmt v
   | App x -> fprintf fmt "(%a %a)" fmt_expr x.func fmt_expr x.carg
   | Lambda x -> fprintf fmt "(fun %a -> %a)" fmt_variable x.varg fmt_expr x.body
   | Const x -> fprintf fmt "%a" fmt_const_expr x
@@ -60,7 +60,7 @@ and fmt_expr fmt expr =
 
 let rec fmt_pre_expr_without_type fmt expr =
   match expr.epre with
-  | Var v -> fmt_variable fmt v
+  | Var v -> fmt_string fmt v
   | App x ->
     fprintf fmt "(%a %a)" fmt_expr_without_type x.func fmt_expr_without_type x.carg
   | Lambda x ->
@@ -91,7 +91,7 @@ and fmt_expr_without_type fmt expr = fmt_pre_expr_without_type fmt expr
 
 let rec nodeFmt_pre_expr fmt expr =
   match expr.epre with
-  | Var v -> fprintf fmt "(Var %a)" fmt_variable v
+  | Var v -> fprintf fmt "(Var %a)" fmt_string v
   | App x -> fprintf fmt "(App%a,%a)" nodeFmt_pre_expr x.func nodeFmt_pre_expr x.carg
   | Lambda x ->
     fprintf fmt "(Lambda %a -> %a)" fmt_variable x.varg nodeFmt_pre_expr x.body

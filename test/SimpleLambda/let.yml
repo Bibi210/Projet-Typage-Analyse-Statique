@@ -1,0 +1,6 @@
+titre: "Let in"
+description: "Just an let in"
+prog: "let a b = 32 in a"
+typeur: true
+IO:
+  - "(fun b -> 32)"

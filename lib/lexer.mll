@@ -31,6 +31,9 @@ rule token = parse
 | "->" {LSimpleArrow}
 | ':' {LColon}
 | "if" {LIf}
+| "let" {LLet}
+| "=" {LEqual}
+| "in" {LIn}
 | "then" {LThen}
 | "else" {LElse}
 | vartype as v {LVarType v}

@@ -15,24 +15,25 @@ exception
     ; equation : string
     }
 
-let occurCheck var typ =
-  let rec occurCheck' var typ =
-    match typ.tpre with
-    | TVar x when x = var -> true
-    | TLambda { targ; tbody } -> occurCheck' var targ || occurCheck' var tbody
-    | _ -> false
-  in
-  occurCheck' var typ
+let rec occurCheck var typ =
+  let fix = occurCheck var in
+  match typ.tpre with
+  | TVar x when x = var -> true
+  | TLambda { targ; tbody } -> fix targ || fix tbody
+  | TAny { polytype; _ } -> fix polytype
+  | TConst _ | TVar _ -> false
 ;;
 
 let rec substitute var newtyp oldtyp =
+  let fix = substitute var newtyp in
   match oldtyp.tpre with
   | TVar x when x = var -> newtyp
   | TLambda { targ; tbody } ->
-    let targ' = substitute var newtyp targ in
-    let tbody' = substitute var newtyp tbody in
-    { tpos = oldtyp.tpos; tpre = TLambda { targ = targ'; tbody = tbody' } }
-  | _ -> oldtyp
+    { oldtyp with tpre = TLambda { targ = fix targ; tbody = fix tbody } }
+  | TAny { id; polytype } ->
+    let polytype' = fix polytype in
+    { oldtyp with tpre = TAny { id; polytype = polytype' } }
+  | TConst _ | TVar _ -> oldtyp
 ;;
 
 let substituteAll var typ equations =
@@ -43,23 +44,47 @@ let substituteAll var typ equations =
 ;;
 
 let generateTVar str pos = { tpos = pos; tpre = TVar (symbolGenerator str) }
-let unifyTarget progPos = { tpos = progPos; tpre = TVar "%!target" }
+let generateAny id typ pos = { tpos = pos; tpre = TAny { id; polytype = typ } }
+let targetString = symbolGenerator "target"
+let unifyTarget progPos = { tpos = progPos; tpre = TVar targetString }
 
-let generateConstTypeEquations node pos target =
-  match node with
-  | Int _ -> [ { left = target; right = { tpos = pos; tpre = TConst TInt } } ]
+let rec renameTVar oldName newName typ =
+  let fix = renameTVar oldName newName in
+  { typ with
+    tpre =
+      (match typ.tpre with
+       | TVar x when x = oldName -> TVar newName
+       | TLambda { targ; tbody } -> TLambda { targ = fix targ; tbody = fix tbody }
+       | TAny { id; polytype } -> TAny { id; polytype = fix polytype }
+       | TConst _ | TVar _ -> typ.tpre)
+  }
 ;;
 
-let (* rec *) generateTypeEquations tree =
+let generateConstTypeEquations node pos target =
+  { left = target
+  ; right =
+      { tpos = pos
+      ; tpre =
+          TConst
+            (match node with
+             | Int _ -> TInt)
+      }
+  }
+;;
+
+let rec generateTypeEquations tree target =
   let rec generateEquation' node target env =
     (match node.epre with
      | Var x ->
-       [ (match Env.find_opt x.id env with
+       [ (match Env.find_opt x env with
           | Some t -> { left = target; right = t }
-          | None -> { left = target; right = raise (InternalError (Unbound x)) })
+          | None ->
+            { left = target
+            ; right = raise (InternalError (Unbound { id = x; vpos = node.epos }))
+            })
        ]
      | Lambda { varg; body } ->
-       let targ = generateTVar varg.id node.epos in
+       let targ = generateTVar varg.id varg.vpos in
        let tbody = generateTVar "body" node.epos in
        let env' = Env.add varg.id targ env in
        let eq1 = generateEquation' body tbody env' in
@@ -75,19 +100,22 @@ let (* rec *) generateTypeEquations tree =
        in
        let eq2 = generateEquation' carg targ env in
        eq2 @ eq1
-     | Const c -> generateConstTypeEquations c node.epos target
+     | Const c -> [ generateConstTypeEquations c node.epos target ]
      | If { cond; tbranch; fbranch } ->
        let eq1 = generateEquation' cond { tpos = node.epos; tpre = TConst TInt } env in
        let eq2 = generateEquation' tbranch target env in
        let eq3 = generateEquation' fbranch target env in
        eq1 @ eq2 @ eq3
-     | _ -> failwith "Not implemented")
+     | Let { varg; init; body } ->
+       let instancedType = infer init in
+       let env' = Env.add varg.id (generateAny varg.id instancedType tree.epos) env in
+       generateEquation' body target env')
     @
     match node.etyp_annotation with
     | Some t -> [ { left = t; right = target } ]
     | None -> []
   in
-  generateEquation' tree (unifyTarget tree.epos) Env.empty
+  generateEquation' tree target Env.empty
 
 and unify ls =
   let rec unify' ls result =
@@ -96,6 +124,16 @@ and unify ls =
     | { left; right } :: tail ->
       let result = { left; right } :: result in
       (match left.tpre, right.tpre with
+       | TAny { id; polytype }, _ ->
+         unify'
+           ({ left = renameTVar id (symbolGenerator "instencied" ^ id) polytype; right }
+            :: tail)
+           result
+       | _, TAny { id; polytype } ->
+         unify'
+           ({ left; right = renameTVar id (symbolGenerator "instencied" ^ id) polytype }
+            :: tail)
+           result
        | leftT, rightT when leftT = rightT -> unify' tail result
        | TVar x, _ when not (occurCheck x right) ->
          unify' (substituteAll x right tail) result
@@ -118,23 +156,27 @@ and unify ls =
            })
     | { left; right } :: tail ->
       (match left.tpre, right.tpre with
-       | TVar x, _ when x = "%!target" -> right
-       | _, TVar x when x = "%!target" -> left
+       | TVar x, _ when x = targetString -> right
+       | _, TVar x when x = targetString -> left
        | TVar x, _ -> findResult (substituteAll x right tail)
        | _, TVar x -> findResult (substituteAll x left tail)
        | _ -> findResult tail)
   in
   findResult (unify' ls [])
-;;
 
-let infer tree =
-  try unify (generateTypeEquations tree) with
+and generateProgTypeEquation tree =
+  let target = unifyTarget tree.epos in
+  generateTypeEquations tree target
+
+and infer tree =
+  try unify (generateProgTypeEquation tree) with
   | InternalError (Unification a) ->
     raise
       (TypingError
          { message = Prettyprinter.string_of_equation a
          ; location = a.left.tpos
-         ; equation = Prettyprinter.string_of_equation_list (generateTypeEquations tree)
+         ; equation =
+             Prettyprinter.string_of_equation_list (generateProgTypeEquation tree)
          })
   | InternalError (Unbound v) ->
     raise

@@ -3,7 +3,7 @@ open Helpers
 module Env = Map.Make (String)
 
 type eval_errors =
-  | NotFunction of expr
+  | TyperCheckFAIL of expr
   | Unbound of variable
 
 exception InternalError of eval_errors
@@ -19,7 +19,7 @@ let rec alphaReverser expr =
   { expr with
     epre =
       (match expr.epre with
-       | Var x -> Var (renameVarId x)
+       | Var x -> Var (getNameFromSymbol x)
        | Lambda { varg; body } ->
          Lambda { varg = renameVarId varg; body = alphaReverser body }
        | App { func; carg } ->
@@ -46,8 +46,8 @@ let alphaConverter expr =
     let writeConvertion epre = { expr with epre } in
     match expr.epre with
     | Var x ->
-      (match Env.find_opt x.id env with
-       | Some new_id -> writeConvertion (Var (changeVarId x new_id))
+      (match Env.find_opt x env with
+       | Some new_id -> writeConvertion (Var new_id)
        | None -> expr)
     | Lambda { varg; body } ->
       let new_id = symbolGenerator varg.id in
@@ -78,26 +78,18 @@ let alphaConverter expr =
   alphaConverter' expr Env.empty
 ;;
 
-let substitute expr id other =
-  let rec substitute' expr =
-    let writeConvertion epre = { expr with epre } in
-    match expr.epre with
-    | Var x -> if x.id = id then other else expr
-    | Lambda { varg; body } -> writeConvertion (Lambda { varg; body = substitute' body })
-    | App { func; carg } ->
-      writeConvertion (App { func = substitute' func; carg = substitute' carg })
-    | Const _ -> expr
-    | If { cond; tbranch; fbranch } ->
-      writeConvertion
-        (If
-           { cond = substitute' cond
-           ; tbranch = substitute' tbranch
-           ; fbranch = substitute' fbranch
-           })
-    | Let { varg; init; body } ->
-      writeConvertion (Let { varg; init = substitute' init; body = substitute' body })
-  in
-  substitute' expr
+let rec substitute id other expr =
+  let fix = substitute id other in
+  let writeConvertion epre = { expr with epre } in
+  match expr.epre with
+  | Var x -> if x = id then other else expr
+  | Lambda { varg; body } -> writeConvertion (Lambda { varg; body = fix body })
+  | App { func; carg } -> writeConvertion (App { func = fix func; carg = fix carg })
+  | Const _ -> expr
+  | If { cond; tbranch; fbranch } ->
+    writeConvertion (If { cond = fix cond; tbranch = fix tbranch; fbranch = fix fbranch })
+  | Let { varg; init; body } ->
+    writeConvertion (Let { varg; init = fix init; body = fix body })
 ;;
 
 let betaReduce e =
@@ -106,11 +98,11 @@ let betaReduce e =
     match expr.epre with
     | App { func; carg } ->
       (match func.epre with
-       | Lambda { varg; body } -> betaReduce' (substitute body varg.id carg)
+       | Lambda { varg; body } -> betaReduce' (substitute varg.id carg body)
        | _ ->
          let func =
            match betaReduce' func with
-           | x when x = func -> raise (InternalError (NotFunction func))
+           | x when x = func -> raise (InternalError (TyperCheckFAIL func))
            | x -> x
          in
          let carg = betaReduce' carg in
@@ -118,17 +110,20 @@ let betaReduce e =
     | If { cond; tbranch; fbranch } ->
       (match cond.epre with
        | Const (Int 0) -> betaReduce' tbranch
-       | Const (Int 1) -> betaReduce' fbranch
+       | Const (Int _) -> betaReduce' fbranch
        | _ ->
-         let cond = betaReduce' cond in
-         let tbranch = betaReduce' tbranch in
-         let fbranch = betaReduce' fbranch in
-         betaReduce' (writeConvertion (If { cond; tbranch; fbranch })))
-    | _ -> expr
+         (match betaReduce' cond with
+          | x when x = cond -> raise (InternalError (TyperCheckFAIL cond))
+          | cond -> betaReduce' (writeConvertion (If { cond; tbranch; fbranch }))))
+    | Let { varg; init; body } ->
+      let init = betaReduce' init in
+      let body = betaReduce' (substitute varg.id init body) in
+      betaReduce' body
+    | Lambda _ | Const _ | Var _ -> expr
   in
   let e = alphaConverter e in
   try alphaReverser (betaReduce' e) with
-  | InternalError (NotFunction e) ->
+  | InternalError (TyperCheckFAIL e) ->
     raise (EvalError { message = "Not a function"; location = e.epos })
   | InternalError (Unbound v) ->
     raise (EvalError { message = "Unbound variable"; location = v.vpos })

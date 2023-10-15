@@ -41,7 +41,7 @@ and pre_expr =
       { varg : variable
       ; body : expr
       }
-  | Var of variable
+  | Var of string
   | Const of econst
   | If of
       { cond : expr
