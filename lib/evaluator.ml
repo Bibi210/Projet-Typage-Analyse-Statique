@@ -103,17 +103,13 @@ let betaReduce e =
   let rec betaReduce' expr =
     let writeConvertion epre = { expr with epre } in
     match expr.epre with
+    | App { func = { epre = Lambda { varg; body }; _ }; carg } ->
+      let carg = betaReduce' carg in
+      betaReduce' (substitute varg.id carg body)
     | App { func; carg } ->
-      (match func.epre with
-       | Lambda { varg; body } -> betaReduce' (substitute varg.id carg body)
-       | _ ->
-         let func =
-           match betaReduce' func with
-           | x when x = func -> raise (InternalError (LambdaReduction func))
-           | x -> x
-         in
-         let carg = betaReduce' carg in
-         betaReduce' (writeConvertion (App { func; carg })))
+      (match betaReduce' func with
+       | x when x = func -> writeConvertion (App { func; carg }) (* Redex but not func *)
+       | func -> betaReduce' (writeConvertion (App { func; carg })))
     | If { cond; tbranch; fbranch } ->
       (match cond.epre with
        | Const (Int 0) -> betaReduce' tbranch

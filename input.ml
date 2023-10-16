@@ -1,1 +1,2 @@
-let rec baserec a = if true then baserec else baserec in 0
+let f c = 3 in
+(f 1)
