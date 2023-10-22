@@ -5,6 +5,7 @@
   let position start endd = {
     start_pos = start;
     end_pos = endd;
+    isSTD = false
   }
   let func_curryfy args body =
     List.fold_right
@@ -43,6 +44,8 @@
 
 %token LSimpleArrow LEqual
 %token LFun LIf LThen LElse LLet LIn  LRec
+
+%token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
 
 
 %token <Ast.pre_type>LParseType
@@ -100,6 +103,35 @@ pre_expr:
     | LLet; varg = variable; LEqual; init = expr; LIn ;body = expr{
         Let {varg;init;body}
     }
+    | LOpenPar;op = unaryoperator ; arg = option(expr); LClosePar{
+       match arg with
+        | Some arg -> UnOp { op; arg }
+        | None -> 
+            let dummyvar = { id = symbolGenerator "x"; vpos = position $startpos(op) $endpos(op) } in
+            let varexpr = {epre = Var dummyvar.id; epos = dummyvar.vpos; etyp_annotation = None} in
+            let bodyexpr = {epre = UnOp { op; arg = varexpr}; epos = dummyvar.vpos; etyp_annotation = None} in
+            Lambda { varg = dummyvar; body = bodyexpr }
+    }
+    | LOpenPar ; larg = option(expr) ; op = binaryoperator ; rarg = option(expr);LClosePar {
+        let dummyvar1 = { id = symbolGenerator "x"; vpos = position $startpos(op) $endpos(op) } in
+        let dummyvar2 = { id = symbolGenerator "y"; vpos = position $startpos(op) $endpos(op) } in
+        match larg,rarg with
+        | Some larg, Some rarg -> BinOp { larg; op; rarg }
+        | Some larg, None -> 
+            let varexpr = {epre = Var dummyvar2.id; epos = dummyvar2.vpos; etyp_annotation = None} in
+            let bodyexpr = {epre = BinOp { larg; op; rarg = varexpr}; epos = dummyvar2.vpos; etyp_annotation = None} in
+            Lambda { varg = dummyvar2; body = bodyexpr }
+        | None, Some rarg ->
+            let varexpr = {epre = Var dummyvar1.id; epos = dummyvar1.vpos; etyp_annotation = None} in
+            let bodyexpr = {epre = BinOp { larg = varexpr; op; rarg}; epos = dummyvar1.vpos; etyp_annotation = None} in
+            Lambda { varg = dummyvar1; body = bodyexpr }
+        | None, None ->
+            let varexpr1 = {epre = Var dummyvar1.id; epos = dummyvar1.vpos; etyp_annotation = None} in
+            let varexpr2 = {epre = Var dummyvar2.id; epos = dummyvar2.vpos; etyp_annotation = None} in
+            let bodyexpr = {epre = BinOp { larg = varexpr1; op; rarg = varexpr2}; epos = dummyvar1.vpos; etyp_annotation = None} in
+            let lambda1 = {epre = Lambda { varg = dummyvar2; body = bodyexpr } ; epos = dummyvar2.vpos; etyp_annotation = None} in
+            Lambda { varg = dummyvar1; body = lambda1 }
+    } 
 
 const:
     | i = Lint { Int i }
@@ -111,6 +143,24 @@ variable:
             vpos = position $startpos(var) $endpos(var)
         }
     }
+
+
+%inline unaryoperator:
+|LNeg {Neg}
+|LNot {Not}
+
+
+%inline binaryoperator:
+|LAdd {Add}
+|LEqual;LEqual {Eq}
+|LMul {Mul}
+|LMod {Mod}
+|LLess {Lt}
+|LGreater {Gt}
+|LOr {Or}
+|LDiv {Div}
+
+
 
 typing:
     | LOpenPar; pre_type = pre_typing; LClosePar {

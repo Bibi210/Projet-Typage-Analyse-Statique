@@ -12,7 +12,6 @@ let fmt_with_semicolon pp fmt l = fmt_with_string "; " pp fmt l
 let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 
 let fmt_const fmt = function
-  | TNat -> fmt_string fmt "nat"
   | TInt -> fmt_string fmt "int"
 ;;
 
@@ -31,6 +30,22 @@ let fmt_equation_list = fmt_with_comma fmt_equation
 let fmt_const_expr fmt expr =
   match expr with
   | Int n -> fprintf fmt "%d" n
+;;
+
+let fmt_binary_operator fmt = function
+  | Add -> fmt_string fmt "+"
+  | Mul -> fmt_string fmt "*"
+  | Div -> fmt_string fmt "/"
+  | Eq -> fmt_string fmt "=="
+  | Lt -> fmt_string fmt "<"
+  | Gt -> fmt_string fmt ">"
+  | Or -> fmt_string fmt "||"
+  | Mod -> fmt_string fmt "%"
+;;
+
+let fmt_unary_operator fmt = function
+  | Not -> fmt_string fmt "!"
+  | Neg -> fmt_string fmt "-"
 ;;
 
 let rec fmt_pre_expr fmt expr =
@@ -52,15 +67,18 @@ let rec fmt_pre_expr fmt expr =
   | Let x ->
     fprintf fmt "let %a = %a in %a" fmt_variable x.varg fmt_expr x.init fmt_expr x.body
   | Fix x -> fprintf fmt "fix %a %a" fmt_variable x.varg fmt_expr x.body
+  | UnOp { op; arg } -> fprintf fmt "%a %a" fmt_unary_operator op fmt_expr arg
+  | BinOp { op; larg; rarg } ->
+    fprintf fmt "%a %a %a" fmt_expr larg fmt_binary_operator op fmt_expr rarg
 
 and fmt_expr fmt expr =
   match expr.etyp_annotation with
   | Some ty -> fprintf fmt "(%a : %a)" fmt_pre_expr expr fmt_type ty
-  | None -> fmt_pre_expr fmt expr
+  | None -> fprintf fmt "(%a)" fmt_pre_expr expr
 ;;
 
 let rec fmt_pre_expr_without_type fmt expr =
-  match expr.epre with
+  match expr with
   | Var v -> fmt_string fmt v
   | App x ->
     fprintf fmt "(%a %a)" fmt_expr_without_type x.func fmt_expr_without_type x.carg
@@ -88,8 +106,23 @@ let rec fmt_pre_expr_without_type fmt expr =
       fmt_expr_without_type
       x.body
   | Fix x -> fprintf fmt "fix %a %a" fmt_variable x.varg fmt_expr_without_type x.body
+  | UnOp { op; arg } ->
+    fprintf fmt "(%a %a)" fmt_unary_operator op fmt_expr_without_type arg
+  | BinOp { op; larg; rarg } ->
+    fprintf
+      fmt
+      "(%a %a %a)"
+      fmt_expr_without_type
+      larg
+      fmt_binary_operator
+      op
+      fmt_expr_without_type
+      rarg
 
-and fmt_expr_without_type fmt expr = fmt_pre_expr_without_type fmt expr
+and fmt_expr_without_type fmt expr = fprintf fmt "%a" fmt_pre_expr_without_type expr.epre
+
+let fmt_expr_list_without_type = fmt_with_comma fmt_expr_without_type
+let fmt_pre_expr_list_without_type = fmt_with_comma fmt_pre_expr_without_type
 
 let rec nodeFmt_pre_expr fmt expr =
   match expr with
@@ -117,12 +150,23 @@ let rec nodeFmt_pre_expr fmt expr =
       x.init
       nodeFmt_expr
       x.body
-  | Fix x -> fprintf fmt "(Fix %a %a)" fmt_variable x.varg nodeFmt_expr x.body
+  | Fix x -> fprintf fmt "Fix %a %a" fmt_variable x.varg nodeFmt_expr x.body
+  | UnOp { op; arg } -> fprintf fmt "UnOp %a,%a" fmt_unary_operator op nodeFmt_expr arg
+  | BinOp { op; larg; rarg } ->
+    fprintf
+      fmt
+      "BinOp %a,%a,%a"
+      nodeFmt_expr
+      larg
+      fmt_binary_operator
+      op
+      nodeFmt_expr
+      rarg
 
 and nodeFmt_expr fmt expr =
   match expr.etyp_annotation with
   | Some ty -> fprintf fmt "(%a : %a)" nodeFmt_pre_expr expr.epre fmt_type ty
-  | None -> nodeFmt_pre_expr fmt expr.epre
+  | None -> fprintf fmt "(%a)" nodeFmt_pre_expr expr.epre
 ;;
 
 let fmt_error fmt msg pos =
@@ -177,6 +221,16 @@ let string_of_equation eq =
 let string_of_equation_list eqls =
   fmt_equation_list Format.str_formatter eqls;
   Format.flush_str_formatter ()
+;;
+
+let print_expr_list expr_ls =
+  fmt_expr_list_without_type Format.std_formatter expr_ls;
+  Format.print_newline ()
+;;
+
+let print_pre_expr_list expr_ls =
+  fmt_pre_expr_list_without_type Format.std_formatter expr_ls;
+  Format.print_newline ()
 ;;
 
 let print_prog prog =

@@ -3,9 +3,7 @@ type variable =
   ; vpos : Helpers.position
   }
 
-type ctype =
-  | TNat
-  | TInt
+type ctype = TInt
 
 type etype =
   { tpre : pre_type
@@ -28,15 +26,13 @@ type econst = Int of int
 
 type bin_op =
   | Add
-  | Sub
   | Mul
   | Div
-  | Eq
-  | Neq
+  | Mod
   | Lt
-  | Leq
   | Gt
-  | Geq
+  | Or
+  | Eq
 
 type un_op =
   | Neg
@@ -72,6 +68,15 @@ and pre_expr =
   | Fix of
       { varg : variable
       ; body : expr
+      }
+  | BinOp of
+      { op : bin_op
+      ; larg : expr
+      ; rarg : expr
+      }
+  | UnOp of
+      { op : un_op
+      ; arg : expr
       }
 
 type prog = expr

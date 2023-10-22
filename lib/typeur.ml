@@ -1,4 +1,5 @@
 open Ast
+open Baselib
 open Helpers
 module Env = Map.Make (String)
 
@@ -42,16 +43,10 @@ let substituteAll var typ equations =
     equations
 ;;
 
-let substituteAllTvar tvar typ equations =
-  match tvar.tpre with
-  | TVar x -> substituteAll x typ equations
-  | _ -> raise (InternalError (Substitution tvar))
-;;
-
 let generateTVar str pos = { tpos = pos; tpre = TVar (symbolGenerator str) }
 let generateAny id typ pos = { tpos = pos; tpre = TAny { id; polytype = typ } }
-let targetString = symbolGenerator "target"
-let unifyTarget progPos = { tpos = progPos; tpre = TVar targetString }
+let targetString () = symbolGenerator "target"
+let unifyTarget progPos = { tpos = progPos; tpre = TVar (targetString ()) }
 
 let rec renameTVar oldName newName typ =
   let fix = renameTVar oldName newName in
@@ -102,58 +97,64 @@ let generalise typ env =
 ;;
 
 let rec generateEquation node target env =
-  let rec generateEquation' node target env =
-    (match node.epre with
-     | Var x ->
-       [ (match Env.find_opt x env with
-          | Some t -> { left = target; right = t }
-          | None -> raise (InternalError (Unbound { id = x; vpos = node.epos })))
-       ]
-     | Lambda { varg; body } ->
-       let targ = generateTVar varg.id varg.vpos in
-       let tbody = generateTVar "body" node.epos in
-       let env' = Env.add varg.id targ env in
-       let eq1 = generateEquation' body tbody env' in
-       { left = target; right = { tpos = node.epos; tpre = TLambda { targ; tbody } } }
-       :: eq1
-     | App { func; carg } ->
-       let targ = generateTVar "call" node.epos in
-       let eq1 =
-         generateEquation'
-           func
-           { tpos = node.epos; tpre = TLambda { targ; tbody = target } }
-           env
-       in
-       let eq2 = generateEquation' carg targ env in
-       eq2 @ eq1
-     | Const c -> [ generateConstTypeEquations c node.epos target ]
-     | If { cond; tbranch; fbranch } ->
-       let eq1 = generateEquation' cond { tpos = node.epos; tpre = TConst TInt } env in
-       let eq2 = generateEquation' tbranch target env in
-       let eq3 = generateEquation' fbranch target env in
-       eq1 @ eq2 @ eq3
-     | Let { varg; init; body } ->
-       let instancedType, _subs = infer' init env in
-       (*      Prettyprinter.print_equation_list _subs;
-               print_endline "";
-               let _subs =
-               List.fold_left (fun acc eq -> acc) [] _subs
-               in *)
-       let env' = Env.add varg.id (generalise instancedType env) env in
-       generateEquation' body target env'
-     | Fix { varg; body } ->
-       let tbody = generateTVar "recbody" node.epos in
-       let env' = Env.add varg.id tbody env in
-       let eq1 = generateEquation' body tbody env' in
-       [ { left = target; right = tbody } ] @ eq1)
-    @
-    match node.etyp_annotation with
-    | Some t -> [ { left = t; right = target } ]
-    | None -> []
-  in
-  generateEquation' node target env
+  (match node.epre with
+   | Var x ->
+     [ (match Env.find_opt x env with
+        | Some t -> { left = target; right = t }
+        | None -> raise (InternalError (Unbound { id = x; vpos = node.epos })))
+     ]
+   | Lambda { varg; body } ->
+     let targ = generateTVar varg.id varg.vpos in
+     let tbody = generateTVar "body" node.epos in
+     let env' = Env.add varg.id targ env in
+     let eq1 = generateEquation body tbody env' in
+     { left = target; right = { tpos = node.epos; tpre = TLambda { targ; tbody } } }
+     :: eq1
+   | App { func; carg } ->
+     let targ = generateTVar "call" node.epos in
+     let eq1 =
+       generateEquation
+         func
+         { tpos = node.epos; tpre = TLambda { targ; tbody = target } }
+         env
+     in
+     let eq2 = generateEquation carg targ env in
+     eq2 @ eq1
+   | Const c -> [ generateConstTypeEquations c node.epos target ]
+   | If { cond; tbranch; fbranch } ->
+     let eq1 = generateEquation cond { tpos = node.epos; tpre = TConst TInt } env in
+     let eq2 = generateEquation tbranch target env in
+     let eq3 = generateEquation fbranch target env in
+     eq1 @ eq2 @ eq3
+   | Let { varg; init; body } ->
+     let instancedType, subs = infer' init env in
+     let env' = Env.add varg.id (generalise instancedType env) env in
+     let res = subs @ generateEquation body target env' in
+(*      Prettyprinter.print_equation_list res; *)
+     res
+   | Fix { varg; body } ->
+     let tbody = generateTVar "recbody" node.epos in
+     let env' = Env.add varg.id tbody env in
+     let eq1 = generateEquation body tbody env' in
+     [ { left = target; right = tbody } ] @ eq1
+   | BinOp { op; larg; rarg } ->
+     let op = find_binop op in
+     let largtarget = { tpos = larg.epos; tpre = List.nth op.args_types 0 } in
+     let rargtarget = { tpos = rarg.epos; tpre = List.nth op.args_types 1 } in
+     let eq1 = generateEquation larg largtarget env in
+     let eq2 = generateEquation rarg rargtarget env in
+     ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
+   | UnOp { op; arg } ->
+     let op = find_unop op in
+     let argtarget = { tpos = arg.epos; tpre = List.nth op.args_types 0 } in
+     let eq1 = generateEquation arg argtarget env in
+     [ { left = target; right = { tpos = node.epos; tpre = op.return_type } } ] @ eq1)
+  @
+  match node.etyp_annotation with
+  | Some t -> [ { left = t; right = target } ]
+  | None -> []
 
-and unify ls =
+and unify ls target =
   let rec unify' ls result =
     match ls with
     | [] -> result
@@ -189,8 +190,8 @@ and unify ls =
            })
     | { left; right } :: tail ->
       (match left.tpre, right.tpre with
-       | TVar x, _ when x = targetString -> right
-       | _, TVar x when x = targetString -> left
+       | x, _ when x = target -> right
+       | _, x when x = target -> left
        | TVar x, _ -> findResult (substituteAll x right tail)
        | _, TVar x -> findResult (substituteAll x left tail)
        | _ -> findResult tail)
@@ -200,7 +201,7 @@ and unify ls =
 
 and infer' tree env =
   let target = unifyTarget tree.epos in
-  try unify (generateEquation tree target env) with
+  try unify (generateEquation tree target env) target.tpre with
   | InternalError (Unification a) ->
     raise
       (TypingError

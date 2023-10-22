@@ -1,0 +1,9 @@
+titre: "Fibonacci"
+description: "Calcul de la suite de Fibonacci"
+prog: "let rec fibo n =
+  if (n == 0) then 0
+  else if (n == 1) then 1
+  else ((fibo (n + -1)) + (fibo (n + -2))) in (fibo 10)"
+typeur: true
+IO: 
+  - "55"

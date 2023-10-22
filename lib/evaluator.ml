@@ -1,4 +1,5 @@
 open Ast
+open Baselib
 open Helpers
 module Env = Map.Make (String)
 
@@ -6,6 +7,7 @@ type eval_errors =
   | TyperCheck of expr
   | Unbound of variable
   | LambdaReduction of expr (* When the body of the function is only Fix of itself *)
+  | Timeout of expr
 
 exception InternalError of eval_errors
 
@@ -38,7 +40,10 @@ let rec alphaReverser expr =
            ; init = alphaReverser init
            ; body = alphaReverser body
            }
-       | Fix { varg; body } -> Fix { varg = renameVarId varg; body = alphaReverser body })
+       | Fix { varg; body } -> Fix { varg = renameVarId varg; body = alphaReverser body }
+       | BinOp x ->
+         BinOp { x with larg = alphaReverser x.larg; rarg = alphaReverser x.rarg }
+       | UnOp x -> UnOp { x with arg = alphaReverser x.arg })
   }
 ;;
 
@@ -78,8 +83,14 @@ let alphaConverter expr =
            })
     | Fix { varg; body } ->
       let new_id = symbolGenerator varg.id in
+      let new_env = Env.add varg.id new_id env in
       writeConvertion
-        (Fix { varg = changeVarId varg new_id; body = alphaConverter' body env })
+        (Fix { varg = changeVarId varg new_id; body = alphaConverter' body new_env })
+    | BinOp x ->
+      writeConvertion
+        (BinOp
+           { x with larg = alphaConverter' x.larg env; rarg = alphaConverter' x.rarg env })
+    | UnOp x -> writeConvertion (UnOp { x with arg = alphaConverter' x.arg env })
   in
   alphaConverter' expr Env.empty
 ;;
@@ -97,6 +108,8 @@ let rec substitute id other expr =
   | Let { varg; init; body } ->
     writeConvertion (Let { varg; init = fix init; body = fix body })
   | Fix { varg; body } -> writeConvertion (Fix { varg; body = fix body })
+  | BinOp x -> writeConvertion (BinOp { x with larg = fix x.larg; rarg = fix x.rarg })
+  | UnOp x -> writeConvertion (UnOp { x with arg = fix x.arg })
 ;;
 
 let betaReduce e =
@@ -121,7 +134,16 @@ let betaReduce e =
     | Let { varg; init; body } ->
       let init = betaReduce' init in
       betaReduce' (substitute varg.id init body)
-    | Fix { varg; body } -> betaReduce' (substitute varg.id expr body)
+    | Fix { varg; body } -> betaReduce' (substitute varg.id expr (alphaConverter body))
+    | BinOp { op; larg; rarg } ->
+      let op = find_binop op in
+      let larg = betaReduce' larg in
+      let rarg = betaReduce' rarg in
+      writeConvertion (op.func [ larg.epre; rarg.epre ])
+    | UnOp { op; arg } ->
+      let op = find_unop op in
+      let arg = betaReduce' arg in
+      writeConvertion (op.func [ arg.epre ])
     | Lambda _ | Const _ | Var _ -> expr
   in
   let e = alphaConverter e in
@@ -132,4 +154,7 @@ let betaReduce e =
     raise (EvalError { message = "Unbound variable"; location = v.vpos })
   | InternalError (LambdaReduction e) ->
     raise (EvalError { message = "Lambda Reduction Failure"; location = e.epos })
+  | InternalError (Timeout e) ->
+    let msg = Prettyprinter.string_of_expr e in
+    raise (EvalError { message = "Timeout on : " ^ msg; location = e.epos })
 ;;

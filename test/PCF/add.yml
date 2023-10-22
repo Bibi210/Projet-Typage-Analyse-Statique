@@ -1,0 +1,6 @@
+titre: "Addition"
+description: "Somme de deux entiers"
+prog: "let a = (3+) in (a 4)"
+typeur: true
+IO: 
+  - "7"

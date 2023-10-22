@@ -1,9 +1,10 @@
 type position =
   { start_pos : Lexing.position
   ; end_pos : Lexing.position
+  ; isSTD : bool
   }
 
-let dummy_position = { start_pos = Lexing.dummy_pos; end_pos = Lexing.dummy_pos }
+let dummy_position = { start_pos = Lexing.dummy_pos; end_pos = Lexing.dummy_pos ; isSTD = false }
 let counter = ref 0
 
 let symbolGenerator name =

@@ -8,7 +8,6 @@
 
     let getToken t = 
     match t with
-      |"nat" -> LParseType (TConst TNat)
       | "int" -> LParseType (TConst TInt)
       | a -> LBasicIdent a
 
@@ -37,6 +36,13 @@ rule token = parse
 | "in" {LIn}
 | "then" {LThen}
 | "else" {LElse}
+| "+" {LAdd}
+| "-" {LNeg}
+| "!" {LNot}
+| "*" {LMul}
+| "/" {LDiv}
+| "<" {LLess}
+| ">" {LGreater}
 | vartype as v {LVarType v}
 | basic_ident as ident {getToken ident}
 | num+ as n       { Lint (int_of_string n) }
