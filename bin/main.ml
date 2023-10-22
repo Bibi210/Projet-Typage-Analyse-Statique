@@ -20,7 +20,7 @@ let () =
     Prettyprinter.print_type (Typeur.infer output);
     (* Print the type equations *)
     print_endline "\nType equations:";
-    let equations = Typeur.generateProgTypeEquation output in
+    let equations = Typeur.generateEquation output in
     Prettyprinter.print_equation_list equations;
     (* Print the evaluation *)
     print_endline "\nEvaluation:";

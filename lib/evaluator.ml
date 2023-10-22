@@ -120,8 +120,7 @@ let betaReduce e =
           | cond -> betaReduce' (writeConvertion (If { cond; tbranch; fbranch }))))
     | Let { varg; init; body } ->
       let init = betaReduce' init in
-      let body = betaReduce' (substitute varg.id init body) in
-      betaReduce' body
+      betaReduce' (substitute varg.id init body)
     | Fix { varg; body } -> betaReduce' (substitute varg.id expr body)
     | Lambda _ | Const _ | Var _ -> expr
   in

@@ -11,6 +11,10 @@ let symbolGenerator name =
   Printf.sprintf "!%s_%d" name !counter
 ;;
 
+let instanceGenerator name =
+  incr counter;
+  Printf.sprintf "instance_%d:%s" !counter name 
+
 let getNameFromSymbol symbol =
   let symbol = String.sub symbol 1 (String.length symbol - 1) in
   let index = String.index_opt symbol '_' in

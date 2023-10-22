@@ -1,2 +1,1 @@
-let f c = 3 in
-(f 1)
+(fun x -> let y = fun a -> ((x : (int -> int)) a) in (x y))

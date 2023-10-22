@@ -26,6 +26,22 @@ and pre_type =
 
 type econst = Int of int
 
+type bin_op =
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Eq
+  | Neq
+  | Lt
+  | Leq
+  | Gt
+  | Geq
+
+type un_op =
+  | Neg
+  | Not
+
 type expr =
   { epre : pre_expr
   ; epos : Helpers.position

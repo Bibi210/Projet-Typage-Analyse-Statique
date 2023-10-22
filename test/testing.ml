@@ -55,7 +55,7 @@ let runTest test =
     let output = Parser.prog Lexer.token buf in
     let _ = Typeur.infer output in
     let equation =
-      Prettyprinter.string_of_equation_list (Typeur.generateProgTypeEquation output)
+      Prettyprinter.string_of_equation_list (Typeur.generateEquation output)
     in
     let ioResult = [ Prettyprinter.string_of_prog (Evaluator.betaReduce output) ] in
     { equation; evalTyping = true; ioResult }

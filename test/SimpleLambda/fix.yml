@@ -1,4 +1,4 @@
-titre: "Recursion"
+titre: "Fix"
 description: "Simple Recursion Test"
 prog: "let rec baserec a = if 0 then a else  (baserec a) in (baserec (fun a -> a))"
 typeur: true
