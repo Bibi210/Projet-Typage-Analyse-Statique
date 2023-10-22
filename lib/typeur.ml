@@ -107,10 +107,7 @@ let rec generateEquation node target env =
      | Var x ->
        [ (match Env.find_opt x env with
           | Some t -> { left = target; right = t }
-          | None ->
-            { left = target
-            ; right = raise (InternalError (Unbound { id = x; vpos = node.epos }))
-            })
+          | None -> raise (InternalError (Unbound { id = x; vpos = node.epos })))
        ]
      | Lambda { varg; body } ->
        let targ = generateTVar varg.id varg.vpos in
