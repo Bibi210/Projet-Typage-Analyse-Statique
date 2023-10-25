@@ -22,8 +22,6 @@ and pre_type =
       ; polytype : etype
       }
 
-type econst = Int of int
-
 type bin_op =
   | Add
   | Mul
@@ -54,7 +52,6 @@ and pre_expr =
       ; body : expr
       }
   | Var of string
-  | Const of econst
   | If of
       { cond : expr
       ; tbranch : expr
@@ -78,6 +75,9 @@ and pre_expr =
       { op : un_op
       ; arg : expr
       }
+  | Const of econst
+
+and econst = Int of int
 
 type prog = expr
 
