@@ -23,7 +23,7 @@ let rec occurCheck var typ =
   | TVar x when x = var -> true
   | TLambda { targ; tbody } -> fix targ || fix tbody
   | TAny { polytype; _ } -> fix polytype
-  | TConst _ | TVar _ | TUnit -> false
+  | TConst _ | TVar _ -> false
   | TRef x -> fix x
 ;;
 
@@ -35,7 +35,7 @@ let rec substitute var newtyp oldtyp =
     { oldtyp with tpre = TLambda { targ = fix targ; tbody = fix tbody } }
   | TAny { id; polytype } -> { oldtyp with tpre = TAny { id; polytype = fix polytype } }
   | TRef x -> { oldtyp with tpre = TRef (fix x) }
-  | TConst _ | TUnit | TVar _ -> oldtyp
+  | TConst _ | TVar _ -> oldtyp
 ;;
 
 let substituteAll var typ equations =
@@ -59,7 +59,7 @@ let rec renameTVar oldName newName typ =
        | TLambda { targ; tbody } -> TLambda { targ = fix targ; tbody = fix tbody }
        | TAny { id; polytype } -> TAny { id; polytype = fix polytype }
        | TRef x -> TRef (fix x)
-       | TConst _ | TVar _ | TUnit -> typ.tpre)
+       | TConst _ | TVar _ -> typ.tpre)
   }
 ;;
 
@@ -70,7 +70,8 @@ let generateConstTypeEquations node pos target =
       ; tpre =
           TConst
             (match node with
-             | Int _ -> TInt)
+             | Int _ -> TInt
+             | Unit -> TUnit)
       }
   }
 ;;
@@ -89,7 +90,6 @@ let generalise typ env =
     | TConst _ -> [], env
     | TRef x -> generalise' x env
     | TAny _ -> failwith "Cannot a non instencied  type variable"
-    | TUnit -> [], env
   in
   let vars, _ = generalise' typ env in
   let polytype =
@@ -108,6 +108,10 @@ let rec generateEquation node target env =
         | Some t -> { left = target; right = t }
         | None -> raise (InternalError (Unbound { id = x; vpos = node.epos })))
      ]
+   | Seq { left; right } ->
+     let eq1 = generateEquation left { tpos = left.epos; tpre = TConst TUnit } env in
+     let eq2 = generateEquation right target env in
+     eq1 @ eq2
    | Ref x ->
      let targ = generateTVar "" node.epos in
      let eq1 = generateEquation x targ env in
@@ -116,6 +120,15 @@ let rec generateEquation node target env =
      let targ = generateTVar "access" node.epos in
      let eq1 = generateEquation x { tpos = node.epos; tpre = TRef targ } env in
      { left = target; right = targ } :: eq1
+   | Assign { area; nval } ->
+     let tarea = generateTVar "area" node.epos in
+     let tnval = generateTVar "nval" node.epos in
+     let eq1 = generateEquation area tarea env in
+     let eq2 = generateEquation nval tnval env in
+     ({ left = { tpre = TConst TUnit; tpos = node.epos }; right = target }
+      :: { left = tarea; right = { tpre = TRef tnval; tpos = tnval.tpos } }
+      :: eq1)
+     @ eq2
    | Lambda { varg; body } ->
      let targ = generateTVar varg.id varg.vpos in
      let tbody = generateTVar "body" node.epos in

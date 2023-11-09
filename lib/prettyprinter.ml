@@ -13,6 +13,7 @@ let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 
 let fmt_const fmt = function
   | TInt -> fmt_string fmt "int"
+  | TUnit -> fmt_string fmt "unit"
 ;;
 
 let rec fmt_pre_type fmt ty =
@@ -22,7 +23,6 @@ let rec fmt_pre_type fmt ty =
   | TConst x -> fprintf fmt "%a" fmt_const x
   | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_type x.polytype
   | TRef x -> fprintf fmt "ref %a" fmt_type x
-  | TUnit -> fmt_string fmt "unit"
 
 and fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty
 
@@ -32,6 +32,7 @@ let fmt_equation_list = fmt_with_comma fmt_equation
 let fmt_const_expr fmt expr =
   match expr with
   | Int n -> fprintf fmt "%d" n
+  | Unit -> fmt_string fmt "()"
 ;;
 
 let fmt_binary_operator fmt = function
@@ -75,19 +76,29 @@ let rec fmt_pre_expr typAnnot fmt expr =
     fprintf fmt "%a %a %a" fmt_expr larg fmt_binary_operator op fmt_expr rarg
   | Ref x -> fprintf fmt "ref %a" fmt_expr x
   | Deref x -> fprintf fmt "!%a" fmt_expr x
+  | Seq x -> fprintf fmt "%a; %a" fmt_expr x.left fmt_expr x.right
+  | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
 
 and fmt_expr typAnnot fmt expr =
   let fmt_pre_expr = fmt_pre_expr typAnnot in
   match expr.etyp_annotation, typAnnot with
   | Some ty, true -> fprintf fmt "(%a : %a)" fmt_pre_expr expr.epre fmt_type ty
-  | None, _ -> fprintf fmt "(%a)" fmt_pre_expr expr.epre
-  | _, false -> fprintf fmt "(%a)" fmt_pre_expr expr.epre
+  | None, _ -> fprintf fmt "%a" fmt_pre_expr expr.epre
+  | _, false -> fprintf fmt "%a" fmt_pre_expr expr.epre
 ;;
 
 let fmt_expr_without_type fmt expr = fprintf fmt "%a" (fmt_expr false) expr
 let fmt_expr_list typAnnot = fmt_with_comma (fmt_expr typAnnot)
 let fmt_pre_expr_list = fmt_with_comma (fmt_pre_expr true)
 let fmt_expr_list_without_type = fmt_with_comma fmt_expr_without_type
+
+module Env = Map.Make (String)
+
+let fmt_memory fmt mem =
+  let fmt_mem_entry fmt (id, expr) = fprintf fmt "%s : %a" id (fmt_expr false) expr in
+  let fmt_mem_entry_list = fmt_with_comma fmt_mem_entry in
+  fprintf fmt "{%a}" fmt_mem_entry_list (Env.bindings mem)
+;;
 
 let fmt_error fmt msg pos =
   fprintf
@@ -159,6 +170,14 @@ let print_pre_expr_list expr_ls =
 ;;
 
 let print_prog prog =
+  fmt_expr_without_type Format.std_formatter prog;
+  Format.print_newline ()
+;;
+
+let print_evaluated_prog prog mem =
+  Format.print_string "Memory = ";
+  fmt_memory Format.std_formatter mem;
+  Format.print_string "\n";
   fmt_expr_without_type Format.std_formatter prog;
   Format.print_newline ()
 ;;

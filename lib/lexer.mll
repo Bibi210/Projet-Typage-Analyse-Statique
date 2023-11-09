@@ -9,6 +9,7 @@
     let getToken t = 
     match t with
       | "int" -> LParseType (TConst TInt)
+      | "unit" -> LParseType (TConst TUnit)
       | a -> LBasicIdent a
 
 }
@@ -31,6 +32,7 @@ rule token = parse
 | ':' {LColon}
 | "if" {LIf}
 | "let" {LLet}
+| "put" {LPut}
 | "rec" {LRec}
 | "=" {LEqual}
 | "in" {LIn}

@@ -25,7 +25,7 @@ let () =
     (* Print the evaluation *)
     print_endline "\nEvaluation:";
     let evaluated = Evaluator.betaReduce output in
-    Prettyprinter.print_prog evaluated
+    Prettyprinter.print_evaluated_prog evaluated !Evaluator.memory;
   with
   | Lexer.LexingError s -> Prettyprinter.print_error s.msg s.pos
   | Parser.Error -> Prettyprinter.print_error "Syntax error" (Lexing.lexeme_start_p buf)

@@ -44,6 +44,7 @@
 
 %token LSimpleArrow LEqual
 %token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref 
+%token LPut
 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
 
@@ -145,9 +146,17 @@ pre_expr:
     | LDeref; e = expr {
         Deref e
     }
+    | LOpenPar;left = expr ; LSemiColon ; ls = separated_nonempty_list(LSemiColon,expr);LClosePar {
+        let seq = List.fold_left (fun acc e -> {epre = Seq {left = acc; right = e}; epos = e.epos; etyp_annotation = None}) left ls in
+        seq.epre
+    }
+    | LOpenPar; area = expr  ; LPut ; nval = expr ; LClosePar {
+        Assign {area; nval}
+    }
 
 const:
     | i = Lint { Int i }
+    | LOpenPar; LClosePar { Unit }
 
 variable:
     | var = LBasicIdent {

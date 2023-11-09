@@ -3,7 +3,9 @@ type variable =
   ; vpos : Helpers.position
   }
 
-type ctype = TInt
+type ctype =
+  | TInt
+  | TUnit
 
 type etype =
   { tpre : pre_type
@@ -22,7 +24,6 @@ and pre_type =
       ; polytype : etype
       }
   | TRef of etype
-  | TUnit
 
 type bin_op =
   | Add
@@ -80,8 +81,18 @@ and pre_expr =
   | Const of econst
   | Ref of expr
   | Deref of expr
+  | Assign of
+      { area : expr
+      ; nval : expr
+      }
+  | Seq of
+      { left : expr
+      ; right : expr
+      }
 
-and econst = Int of int
+and econst = 
+  | Int of int
+  | Unit
 
 type prog = expr
 

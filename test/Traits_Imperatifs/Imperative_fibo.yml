@@ -1,0 +1,14 @@
+titre: "Imperative Fibonnaci"
+description: "Fibonnaci with imperative features"
+prog: "let ante = ref 1 in
+        let prec = ref 1 in
+        let rec fibo n =
+            if (n == 0) then !ante
+            else if (n == 1) then !ante
+            else 
+              let save = !prec in
+              ( ( prec put (!ante + !prec)); (ante put save) ;(fibo (n + -1)))
+          in (fibo 24)"
+typeur: true
+IO: 
+  - "46368"

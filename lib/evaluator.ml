@@ -46,7 +46,11 @@ let rec alphaReverser expr =
          BinOp { x with larg = alphaReverser x.larg; rarg = alphaReverser x.rarg }
        | Ref x -> Ref (alphaReverser x)
        | Deref x -> Deref (alphaReverser x)
-       | UnOp x -> UnOp { x with arg = alphaReverser x.arg })
+       | Seq { left; right } ->
+         Seq { left = alphaReverser left; right = alphaReverser right }
+       | UnOp x -> UnOp { x with arg = alphaReverser x.arg }
+       | Assign { area; nval } ->
+         Assign { area = alphaReverser area; nval = alphaReverser nval })
   }
 ;;
 
@@ -96,6 +100,12 @@ let alphaConverter expr =
     | UnOp x -> writeConvertion (UnOp { x with arg = alphaConverter' x.arg env })
     | Ref x -> writeConvertion (Ref (alphaConverter' x env))
     | Deref x -> writeConvertion (Deref (alphaConverter' x env))
+    | Seq { left; right } ->
+      writeConvertion
+        (Seq { left = alphaConverter' left env; right = alphaConverter' right env })
+    | Assign { area; nval } ->
+      writeConvertion
+        (Assign { area = alphaConverter' area env; nval = alphaConverter' nval env })
   in
   alphaConverter' expr Env.empty
 ;;
@@ -117,6 +127,8 @@ let rec substitute id other expr =
   | UnOp x -> writeConvertion (UnOp { x with arg = fix x.arg })
   | Ref x -> writeConvertion (Ref (fix x))
   | Deref x -> writeConvertion (Deref (fix x))
+  | Seq { left; right } -> writeConvertion (Seq { left = fix left; right = fix right })
+  | Assign { area; nval } -> writeConvertion (Assign { area = fix area; nval = fix nval })
 ;;
 
 let memory = ref Env.empty
@@ -153,6 +165,7 @@ let betaReduce e =
       let op = find_unop op in
       let arg = betaReduce' arg in
       writeConvertion (op.func [ arg.epre ])
+    | Ref { epre = Var _; _ } -> expr
     | Ref x ->
       let addr = Helpers.symbolGenerator "ptr" in
       memory := Env.add addr x !memory;
@@ -164,8 +177,24 @@ let betaReduce e =
           | Some x -> x
           | None -> raise (InternalError (OutOfBound e)))
        | _ -> raise (InternalError (TyperCheck e)))
+    | Seq { left; right } ->
+      let _ = betaReduce' left in
+      let right = betaReduce' right in
+      right
+    | Assign { area; nval } ->
+      let nval = betaReduce' nval in
+      let addr = betaReduce' area in
+      (match addr.epre with
+       | Ref { epre = Var addr; _ } ->
+         (match Env.find_opt addr !memory with
+          | Some _ ->
+            memory := Env.add addr nval !memory;
+            writeConvertion (Const Unit)
+          | None -> raise (InternalError (OutOfBound e)))
+       | _ -> raise (InternalError (TyperCheck e)))
     | Lambda _ | Const _ | Var _ -> expr
   in
+  memory := Env.empty;
   let e = alphaConverter e in
   try alphaReverser (betaReduce' e) with
   | InternalError (TyperCheck e) ->
