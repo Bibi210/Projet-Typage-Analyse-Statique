@@ -6,24 +6,27 @@ type variable =
 type ctype =
   | TInt
   | TUnit
+  | TLambda
 
 type etype =
   { tpre : pre_type
   ; tpos : Helpers.position
   }
+and constructors =
+  | TRef
+  | TLambda
 
 and pre_type =
-  | TLambda of
-      { targ : etype
-      ; tbody : etype
-      }
   | TVar of string
   | TConst of ctype
   | TAny of
       { id : string
       ; polytype : etype
       }
-  | TRef of etype
+  | TApp of {
+    constructor : constructors;
+    args : etype array;
+  }
 
 type bin_op =
   | Add

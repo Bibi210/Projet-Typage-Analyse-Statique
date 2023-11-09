@@ -6,6 +6,7 @@ open Helpers
 let fmt_string = pp_print_string
 let fmt_variable fmt { id; _ } = pp_print_string fmt id
 let fmt_with_string str = pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt str)
+let fmt_with_string_array str = pp_print_array ~pp_sep:(fun fmt () -> fprintf fmt str)
 let fmt_with_space pp fmt l = fmt_with_string " " pp fmt l
 let fmt_with_comma pp fmt l = fmt_with_string ", " pp fmt l
 let fmt_with_semicolon pp fmt l = fmt_with_string "; " pp fmt l
@@ -14,17 +15,24 @@ let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 let fmt_const fmt = function
   | TInt -> fmt_string fmt "int"
   | TUnit -> fmt_string fmt "unit"
+  | TLambda -> fmt_string fmt "lambda"
+;;
+
+let fmt_type_constructor fmt ty =
+  match ty with
+  | TRef -> fmt_string fmt "ref"
+  | TLambda -> fmt_string fmt "lambda"
 ;;
 
 let rec fmt_pre_type fmt ty =
   match ty.tpre with
   | TVar v -> fmt_string fmt v
-  | TLambda x -> fprintf fmt "(%a -> %a)" fmt_pre_type x.targ fmt_pre_type x.tbody
   | TConst x -> fprintf fmt "%a" fmt_const x
   | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_type x.polytype
-  | TRef x -> fprintf fmt "ref %a" fmt_type x
+  | TApp x -> fprintf fmt "%a %a" fmt_type_constructor x.constructor fmt_type_array x.args
 
 and fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty
+and fmt_type_array tyls = fmt_with_string_array "," fmt_type tyls
 
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right
 let fmt_equation_list = fmt_with_comma fmt_equation

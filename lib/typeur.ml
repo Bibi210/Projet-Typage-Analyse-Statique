@@ -21,20 +21,18 @@ let rec occurCheck var typ =
   let fix = occurCheck var in
   match typ.tpre with
   | TVar x when x = var -> true
-  | TLambda { targ; tbody } -> fix targ || fix tbody
   | TAny { polytype; _ } -> fix polytype
+  | TApp { constructor = _; args } -> Array.exists fix args
   | TConst _ | TVar _ -> false
-  | TRef x -> fix x
 ;;
 
 let rec substitute var newtyp oldtyp =
   let fix = substitute var newtyp in
   match oldtyp.tpre with
   | TVar x when x = var -> newtyp
-  | TLambda { targ; tbody } ->
-    { oldtyp with tpre = TLambda { targ = fix targ; tbody = fix tbody } }
   | TAny { id; polytype } -> { oldtyp with tpre = TAny { id; polytype = fix polytype } }
-  | TRef x -> { oldtyp with tpre = TRef (fix x) }
+  | TApp { constructor; args } ->
+    { oldtyp with tpre = TApp { constructor; args = Array.map fix args } }
   | TConst _ | TVar _ -> oldtyp
 ;;
 
@@ -56,9 +54,8 @@ let rec renameTVar oldName newName typ =
     tpre =
       (match typ.tpre with
        | TVar x when x = oldName -> TVar newName
-       | TLambda { targ; tbody } -> TLambda { targ = fix targ; tbody = fix tbody }
        | TAny { id; polytype } -> TAny { id; polytype = fix polytype }
-       | TRef x -> TRef (fix x)
+       | TApp { constructor; args } -> TApp { constructor; args = Array.map fix args }
        | TConst _ | TVar _ -> typ.tpre)
   }
 ;;
@@ -83,12 +80,14 @@ let generalise typ env =
       (match Env.find_opt x env with
        | Some _ -> [], env
        | None -> [ x ], Env.add x typ env)
-    | TLambda { targ; tbody } ->
-      let targ', env' = generalise' targ env in
-      let tbody', env'' = generalise' tbody env' in
-      targ' @ tbody', env''
     | TConst _ -> [], env
-    | TRef x -> generalise' x env
+    | TApp { constructor = _; args } ->
+      Array.fold_left
+        (fun (acc, env) x ->
+          let acc', env' = generalise' x env in
+          acc @ acc', env')
+        ([], env)
+        args
     | TAny _ -> failwith "Cannot a non instencied  type variable"
   in
   let vars, _ = generalise' typ env in
@@ -115,10 +114,18 @@ let rec generateEquation node target env =
    | Ref x ->
      let targ = generateTVar "" node.epos in
      let eq1 = generateEquation x targ env in
-     { left = target; right = { tpos = node.epos; tpre = TRef targ } } :: eq1
+     { left = target
+     ; right = { tpos = node.epos; tpre = TApp { constructor = TRef; args = [| targ |] } }
+     }
+     :: eq1
    | Deref x ->
      let targ = generateTVar "access" node.epos in
-     let eq1 = generateEquation x { tpos = node.epos; tpre = TRef targ } env in
+     let eq1 =
+       generateEquation
+         x
+         { tpos = node.epos; tpre = TApp { constructor = TRef; args = [| targ |] } }
+         env
+     in
      { left = target; right = targ } :: eq1
    | Assign { area; nval } ->
      let tarea = generateTVar "area" node.epos in
@@ -126,7 +133,10 @@ let rec generateEquation node target env =
      let eq1 = generateEquation area tarea env in
      let eq2 = generateEquation nval tnval env in
      ({ left = { tpre = TConst TUnit; tpos = node.epos }; right = target }
-      :: { left = tarea; right = { tpre = TRef tnval; tpos = tnval.tpos } }
+      :: { left = tarea
+         ; right =
+             { tpre = TApp { constructor = TRef; args = [| tnval |] }; tpos = tnval.tpos }
+         }
       :: eq1)
      @ eq2
    | Lambda { varg; body } ->
@@ -134,14 +144,21 @@ let rec generateEquation node target env =
      let tbody = generateTVar "body" node.epos in
      let env' = Env.add varg.id targ env in
      let eq1 = generateEquation body tbody env' in
-     { left = target; right = { tpos = node.epos; tpre = TLambda { targ; tbody } } }
+     { left = target
+     ; right =
+         { tpos = node.epos
+         ; tpre = TApp { constructor = TLambda; args = [| targ; tbody |] }
+         }
+     }
      :: eq1
    | App { func; carg } ->
      let targ = generateTVar "call" node.epos in
      let eq1 =
        generateEquation
          func
-         { tpos = node.epos; tpre = TLambda { targ; tbody = target } }
+         { tpos = node.epos
+         ; tpre = TApp { constructor = TLambda; args = [| targ; target |] }
+         }
          env
      in
      let eq2 = generateEquation carg targ env in
@@ -198,11 +215,15 @@ and unify ls target =
          unify' (substituteAll x right tail) ({ left; right } :: result)
        | _, TVar x when not (occurCheck x left) ->
          unify' (substituteAll x left tail) ({ right = left; left = right } :: result)
-       | TLambda { targ; tbody }, TLambda { targ = targ'; tbody = tbody' } ->
-         unify'
-           ({ left = targ; right = targ' } :: { left = tbody; right = tbody' } :: tail)
-           result
-       | TRef x, TRef y -> unify' ({ left = x; right = y } :: tail) result
+       | TApp { constructor; args }, TApp { constructor = constrb; args = argsb }
+         when constructor = constrb ->
+         if Array.length args <> Array.length argsb
+         then raise (InternalError (Unification { left; right }))
+         else (
+           let equations =
+             Array.to_list (Array.map2 (fun x y -> { left = x; right = y }) args argsb)
+           in
+           unify' (equations @ tail) result)
        | _ -> raise (InternalError (Unification { left; right })))
   in
   let rec findResult result =

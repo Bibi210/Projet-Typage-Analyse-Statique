@@ -1,1 +1,1 @@
-let b = ref 1 in  ((b put 42) ; !b)
+let a _ = 3 in a

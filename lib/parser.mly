@@ -24,7 +24,7 @@
 
     let functype_curryfy args body =
     List.fold_right
-        (fun a acc -> { tpre = TLambda { targ = a; tbody = acc }; tpos = a.tpos })
+        (fun a acc -> { tpre =  TApp {constructor = TLambda; args = [| a ; acc|]} ; tpos = a.tpos })
         args
         body
     ;;
@@ -205,7 +205,7 @@ pre_typing:
         (functype_curryfy args body).tpre
     }
     | LRef; t = typing {
-        TRef t
+        TApp {constructor = TRef; args = [|t|]}
     }
 
 
