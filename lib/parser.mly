@@ -150,7 +150,7 @@ pre_expr:
         let seq = List.fold_left (fun acc e -> {epre = Seq {left = acc; right = e}; epos = e.epos; etyp_annotation = None}) left ls in
         seq.epre
     }
-    | LOpenPar; area = expr  ; LPut ; nval = expr ; LClosePar {
+    | LOpenPar; area = expr  ;  LPut ; nval = expr ; LClosePar {
         Assign {area; nval}
     }
 

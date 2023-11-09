@@ -156,7 +156,6 @@ let rec generateEquation node target env =
      let instancedType, subs = infer' init env in
      let env' = Env.add varg.id (generalise instancedType env) env in
      let res = subs @ generateEquation body target env' in
-     (*      Prettyprinter.print_equation_list res; *)
      res
    | Fix { varg; body } ->
      let tbody = generateTVar "recbody" node.epos in
