@@ -4,7 +4,10 @@ type position =
   ; isSTD : bool
   }
 
-let dummy_position = { start_pos = Lexing.dummy_pos; end_pos = Lexing.dummy_pos ; isSTD = false }
+let dummy_position =
+  { start_pos = Lexing.dummy_pos; end_pos = Lexing.dummy_pos; isSTD = false }
+;;
+
 let counter = ref 0
 
 let symbolGenerator name =
@@ -12,9 +15,15 @@ let symbolGenerator name =
   Printf.sprintf "!%s_%d" name !counter
 ;;
 
+let incrAndGetCounter () =
+  incr counter;
+  !counter
+;;
+
 let instanceGenerator name =
   incr counter;
-  Printf.sprintf "instance_%d:%s" !counter name 
+  Printf.sprintf "instance_%d:%s" !counter name
+;;
 
 let getNameFromSymbol symbol =
   let symbol = String.sub symbol 1 (String.length symbol - 1) in

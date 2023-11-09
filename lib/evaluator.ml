@@ -8,6 +8,7 @@ type eval_errors =
   | Unbound of variable
   | LambdaReduction of expr (* When the body of the function is only Fix of itself *)
   | Timeout of expr
+  | OutOfBound of expr
 
 exception InternalError of eval_errors
 
@@ -43,6 +44,8 @@ let rec alphaReverser expr =
        | Fix { varg; body } -> Fix { varg = renameVarId varg; body = alphaReverser body }
        | BinOp x ->
          BinOp { x with larg = alphaReverser x.larg; rarg = alphaReverser x.rarg }
+       | Ref x -> Ref (alphaReverser x)
+       | Deref x -> Deref (alphaReverser x)
        | UnOp x -> UnOp { x with arg = alphaReverser x.arg })
   }
 ;;
@@ -91,6 +94,8 @@ let alphaConverter expr =
         (BinOp
            { x with larg = alphaConverter' x.larg env; rarg = alphaConverter' x.rarg env })
     | UnOp x -> writeConvertion (UnOp { x with arg = alphaConverter' x.arg env })
+    | Ref x -> writeConvertion (Ref (alphaConverter' x env))
+    | Deref x -> writeConvertion (Deref (alphaConverter' x env))
   in
   alphaConverter' expr Env.empty
 ;;
@@ -110,7 +115,11 @@ let rec substitute id other expr =
   | Fix { varg; body } -> writeConvertion (Fix { varg; body = fix body })
   | BinOp x -> writeConvertion (BinOp { x with larg = fix x.larg; rarg = fix x.rarg })
   | UnOp x -> writeConvertion (UnOp { x with arg = fix x.arg })
+  | Ref x -> writeConvertion (Ref (fix x))
+  | Deref x -> writeConvertion (Deref (fix x))
 ;;
+
+let memory = ref Env.empty
 
 let betaReduce e =
   let rec betaReduce' expr =
@@ -144,6 +153,17 @@ let betaReduce e =
       let op = find_unop op in
       let arg = betaReduce' arg in
       writeConvertion (op.func [ arg.epre ])
+    | Ref x ->
+      let addr = Helpers.symbolGenerator "ptr" in
+      memory := Env.add addr x !memory;
+      writeConvertion (Ref { epre = Var addr; epos = x.epos; etyp_annotation = None })
+    | Deref x ->
+      (match x.epre with
+       | Ref { epre = Var addr; _ } ->
+         (match Env.find_opt addr !memory with
+          | Some x -> x
+          | None -> raise (InternalError (OutOfBound e)))
+       | _ -> raise (InternalError (TyperCheck e)))
     | Lambda _ | Const _ | Var _ -> expr
   in
   let e = alphaConverter e in

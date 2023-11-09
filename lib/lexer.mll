@@ -38,11 +38,14 @@ rule token = parse
 | "else" {LElse}
 | "+" {LAdd}
 | "-" {LNeg}
-| "!" {LNot}
+| "not" {LNot}
 | "*" {LMul}
 | "/" {LDiv}
 | "<" {LLess}
 | ">" {LGreater}
+| ";" {LSemiColon}
+| "ref" {LRef}
+| "!" {LDeref}
 | vartype as v {LVarType v}
 | basic_ident as ident {getToken ident}
 | num+ as n       { Lint (int_of_string n) }

@@ -1,5 +1,5 @@
 titre: "Advenced Let subs"
 description: "Let Typing Test but with substitution that must be applied higher in the tree"
-prog: "fun x -> let y = fun a -> ((x : (int -> int)) a) in (x y)"
+prog: "fun x -> let y a =((x : (int -> int)) a) in (x y)"
 typeur: false
 IO: []

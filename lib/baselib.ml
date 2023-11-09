@@ -80,6 +80,7 @@ let modulo =
 ;;
 
 let eq =
+  (*TODO: We need an polymorphic equal *)
   { args_types = [ TConst TInt; TConst TInt ]
   ; return_type = TConst TInt
   ; func =

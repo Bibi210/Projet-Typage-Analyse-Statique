@@ -43,7 +43,7 @@
 %token <string> LBasicIdent LVarType
 
 %token LSimpleArrow LEqual
-%token LFun LIf LThen LElse LLet LIn  LRec
+%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref 
 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
 
@@ -53,11 +53,11 @@
 %%
 
 prog:
-    | expr ; EOF ; { $1 }
+    | p = expr ; EOF { p }
     
 
 expr:
-    | LOpenPar ; e = expr ; LClosePar ; { e }
+    | LOpenPar ; e = expr ; LClosePar { e }
     | e = pre_expr {
         {
             epre = e ; 
@@ -72,8 +72,14 @@ expr:
             etyp_annotation = Some(etype) 
         }
     }
+
+letbody:
+    | LIn ; e = expr { e }
+    | LSemiColon ; LSemiColon; e = expr { e }
+    | e = expr { e }
+
 pre_expr:
-    | v = LBasicIdent ; { Var v }
+    | v = LBasicIdent { Var v }
     |  LFun  ; args = list(variable) ; LSimpleArrow ; body = expr   { 
         let args = if List.length args <> 0 then args 
           else [
@@ -90,19 +96,20 @@ pre_expr:
     | LIf ; cond = expr ; LThen ; tbranch = expr ; LElse ; fbranch = expr {
             If { cond; tbranch; fbranch };
     }
-    | LLet; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; LIn ;content = expr{
+    | LLet; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; content= letbody{
         Let {
             varg ; init = func_curryfy args func_body;body = content
         }
     }
-    | LLet; LRec; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; LIn ;content = expr{
+    | LLet; LRec; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; content= letbody{
         Let {
             varg ; init = recfunc_curryfy varg args func_body;body = content
         }
     }
-    | LLet; varg = variable; LEqual; init = expr; LIn ;body = expr{
+    | LLet; varg = variable; LEqual; init = expr; body = letbody{
         Let {varg;init;body}
     }
+    /* Generation de lambdas expr */
     | LOpenPar;op = unaryoperator ; arg = option(expr); LClosePar{
        match arg with
         | Some arg -> UnOp { op; arg }
@@ -111,7 +118,7 @@ pre_expr:
             let varexpr = {epre = Var dummyvar.id; epos = dummyvar.vpos; etyp_annotation = None} in
             let bodyexpr = {epre = UnOp { op; arg = varexpr}; epos = dummyvar.vpos; etyp_annotation = None} in
             Lambda { varg = dummyvar; body = bodyexpr }
-    }
+    }/* Generation de lambdas expr */
     | LOpenPar ; larg = option(expr) ; op = binaryoperator ; rarg = option(expr);LClosePar {
         let dummyvar1 = { id = symbolGenerator "x"; vpos = position $startpos(op) $endpos(op) } in
         let dummyvar2 = { id = symbolGenerator "y"; vpos = position $startpos(op) $endpos(op) } in
@@ -131,7 +138,13 @@ pre_expr:
             let bodyexpr = {epre = BinOp { larg = varexpr1; op; rarg = varexpr2}; epos = dummyvar1.vpos; etyp_annotation = None} in
             let lambda1 = {epre = Lambda { varg = dummyvar2; body = bodyexpr } ; epos = dummyvar2.vpos; etyp_annotation = None} in
             Lambda { varg = dummyvar1; body = lambda1 }
+    }
+    | LRef; e = expr {
+        Ref e 
     } 
+    | LDeref; e = expr {
+        Deref e
+    }
 
 const:
     | i = Lint { Int i }
@@ -181,6 +194,9 @@ pre_typing:
     | t = LParseType { t }
     | LOpenPar; args = nonempty_list(typing);LSimpleArrow;body = typing;LClosePar {
         (functype_curryfy args body).tpre
+    }
+    | LRef; t = typing {
+        TRef t
     }
 
 

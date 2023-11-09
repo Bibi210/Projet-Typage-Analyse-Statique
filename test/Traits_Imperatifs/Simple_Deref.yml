@@ -1,0 +1,8 @@
+titre: "Simple_Deref"
+description: "Fonction de Création de référence polymorphe et utilisation"
+prog: "let a x = ref x in
+let b = ((a  ((a 3) : ref int)  ) : ref ref int) in !b
+"
+typeur: true
+IO:
+  - "ref ptr"

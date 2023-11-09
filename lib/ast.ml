@@ -21,6 +21,8 @@ and pre_type =
       { id : string
       ; polytype : etype
       }
+  | TRef of etype
+  | TUnit
 
 type bin_op =
   | Add
@@ -76,6 +78,8 @@ and pre_expr =
       ; arg : expr
       }
   | Const of econst
+  | Ref of expr
+  | Deref of expr
 
 and econst = Int of int
 
