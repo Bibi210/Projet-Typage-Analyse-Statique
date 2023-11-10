@@ -40,12 +40,12 @@
 %token EOF
 %token LOpenPar LClosePar LColon
 %token <int>Lint
-%token <string> LBasicIdent LVarType
+%token <string> LBasicIdent LVarType LConstructorIdent
 
 %token LSimpleArrow LEqual
 %token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref 
 %token LPut
-
+%token LTupleInfixe 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
 
 
@@ -153,6 +153,16 @@ pre_expr:
     | LOpenPar; area = expr  ;  LPut ; nval = expr ; LClosePar {
         Assign {area; nval}
     }
+    | LOpenPar ; hd = expr ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,expr);LClosePar  {
+        Construct 
+            { constructor = ETuple
+            ; args = Array.of_list (hd::tail)
+            }
+    }
+
+/*     | constructor = LConstructorIdent; args = nonempty_list(expr) {
+        Construct {constructor; args}
+    } */
 
 const:
     | i = Lint { Int i }
@@ -206,6 +216,9 @@ pre_typing:
     }
     | LRef; t = typing {
         TApp {constructor = TRef; args = [|t|]}
+    }
+    | LOpenPar ; hd = typing ; LMul ; tail = separated_nonempty_list(LMul,typing) ; LClosePar  {
+        TApp {constructor = TTuple; args = Array.of_list (hd::tail)}
     }
 
 

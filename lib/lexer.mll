@@ -16,6 +16,7 @@
 
 let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let basic_ident = ['a'-'z' '_'] alphanum
+let constructor_ident = ['A'-'Z'] alphanum
 let num = ('-')?['0'-'9']*
 let bool = ("true"|"false")
 
@@ -48,8 +49,10 @@ rule token = parse
 | ";" {LSemiColon}
 | "ref" {LRef}
 | "!" {LDeref}
+| "," {LTupleInfixe}
 | vartype as v {LVarType v}
 | basic_ident as ident {getToken ident}
+| constructor_ident as ident {LConstructorIdent ident}
 | num+ as n       { Lint (int_of_string n) }
 | "//"  { single_line_comment lexbuf }
 | "(*" {multi_line_comment lexbuf}

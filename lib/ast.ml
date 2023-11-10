@@ -12,9 +12,11 @@ type etype =
   { tpre : pre_type
   ; tpos : Helpers.position
   }
+
 and constructors =
   | TRef
   | TLambda
+  | TTuple
 
 and pre_type =
   | TVar of string
@@ -23,10 +25,10 @@ and pre_type =
       { id : string
       ; polytype : etype
       }
-  | TApp of {
-    constructor : constructors;
-    args : etype array;
-  }
+  | TApp of
+      { constructor : constructors
+      ; args : etype array
+      }
 
 type bin_op =
   | Add
@@ -41,6 +43,8 @@ type bin_op =
 type un_op =
   | Neg
   | Not
+
+type econstructors = ETuple
 
 type expr =
   { epre : pre_expr
@@ -92,8 +96,12 @@ and pre_expr =
       { left : expr
       ; right : expr
       }
+  | Construct of
+      { constructor : econstructors
+      ; args : expr array
+      }
 
-and econst = 
+and econst =
   | Int of int
   | Unit
 

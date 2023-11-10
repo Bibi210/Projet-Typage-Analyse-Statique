@@ -1,1 +1,1 @@
-let a _ = 3 in a
+((1,(fun a -> 4),3) : (int * ('a -> 'a) * int ))

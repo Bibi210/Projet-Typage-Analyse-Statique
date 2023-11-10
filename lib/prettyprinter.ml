@@ -22,6 +22,7 @@ let fmt_type_constructor fmt ty =
   match ty with
   | TRef -> fmt_string fmt "ref"
   | TLambda -> fmt_string fmt "lambda"
+  | TTuple -> fmt_string fmt "tuple"
 ;;
 
 let rec fmt_pre_type fmt ty =
@@ -59,6 +60,10 @@ let fmt_unary_operator fmt = function
   | Neg -> fmt_string fmt "-"
 ;;
 
+let fmt_constructor fmt = function
+  | ETuple -> fmt_string fmt "tuple"
+;;
+
 let rec fmt_pre_expr typAnnot fmt expr =
   let fmt_expr = fmt_expr typAnnot in
   match expr with
@@ -86,6 +91,7 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | Deref x -> fprintf fmt "!%a" fmt_expr x
   | Seq x -> fprintf fmt "%a; %a" fmt_expr x.left fmt_expr x.right
   | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
+  | Construct x -> fprintf fmt "%a(%a)" fmt_constructor x.constructor fmt_expr_array x.args
 
 and fmt_expr typAnnot fmt expr =
   let fmt_pre_expr = fmt_pre_expr typAnnot in
@@ -93,7 +99,8 @@ and fmt_expr typAnnot fmt expr =
   | Some ty, true -> fprintf fmt "(%a : %a)" fmt_pre_expr expr.epre fmt_type ty
   | None, _ -> fprintf fmt "%a" fmt_pre_expr expr.epre
   | _, false -> fprintf fmt "%a" fmt_pre_expr expr.epre
-;;
+
+and fmt_expr_array tyls = fmt_with_string_array "," (fmt_expr false) tyls
 
 let fmt_expr_without_type fmt expr = fprintf fmt "%a" (fmt_expr false) expr
 let fmt_expr_list typAnnot = fmt_with_comma (fmt_expr typAnnot)

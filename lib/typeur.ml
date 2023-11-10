@@ -186,6 +186,15 @@ let rec generateEquation node target env =
      let eq1 = generateEquation larg largtarget env in
      let eq2 = generateEquation rarg rargtarget env in
      ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
+   | Construct { constructor = ETuple; args } ->
+     let targs = Array.map (fun a -> generateTVar "Content" a.epos) args in
+     let args_equations = Array.map2 (fun a t -> generateEquation a t env) args targs in
+     Array.fold_left (fun acc x -> acc @ x) [] args_equations
+     @ [ { left = target
+         ; right =
+             { tpos = node.epos; tpre = TApp { constructor = TTuple; args = targs } }
+         }
+       ]
    | UnOp { op; arg } ->
      let op = find_unop op in
      let argtarget = { tpos = arg.epos; tpre = List.nth op.args_types 0 } in

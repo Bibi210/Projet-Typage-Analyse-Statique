@@ -50,7 +50,9 @@ let rec alphaReverser expr =
          Seq { left = alphaReverser left; right = alphaReverser right }
        | UnOp x -> UnOp { x with arg = alphaReverser x.arg }
        | Assign { area; nval } ->
-         Assign { area = alphaReverser area; nval = alphaReverser nval })
+         Assign { area = alphaReverser area; nval = alphaReverser nval }
+       | Construct { constructor; args } ->
+         Construct { constructor; args = Array.map alphaReverser args })
   }
 ;;
 
@@ -106,6 +108,9 @@ let alphaConverter expr =
     | Assign { area; nval } ->
       writeConvertion
         (Assign { area = alphaConverter' area env; nval = alphaConverter' nval env })
+    | Construct { constructor; args } ->
+      writeConvertion
+        (Construct { constructor; args = Array.map (fun x -> alphaConverter' x env) args })
   in
   alphaConverter' expr Env.empty
 ;;
@@ -129,6 +134,8 @@ let rec substitute id other expr =
   | Deref x -> writeConvertion (Deref (fix x))
   | Seq { left; right } -> writeConvertion (Seq { left = fix left; right = fix right })
   | Assign { area; nval } -> writeConvertion (Assign { area = fix area; nval = fix nval })
+  | Construct { constructor; args } ->
+    writeConvertion (Construct { constructor; args = Array.map fix args })
 ;;
 
 let memory = ref Env.empty
@@ -192,6 +199,9 @@ let betaReduce e =
             writeConvertion (Const Unit)
           | None -> raise (InternalError (OutOfBound e)))
        | _ -> raise (InternalError (TyperCheck e)))
+    | Construct { constructor; args } ->
+      let args = Array.map betaReduce' args in
+      writeConvertion (Construct { constructor; args })
     | Lambda _ | Const _ | Var _ -> expr
   in
   memory := Env.empty;
