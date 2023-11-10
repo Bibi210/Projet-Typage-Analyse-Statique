@@ -47,9 +47,8 @@
 %token LPut
 %token LTupleInfixe 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
+%token LTInt LTUnit
 
-
-%token <Ast.pre_type>LParseType
 %start <prog> prog
 %%
 
@@ -210,16 +209,22 @@ typing:
 
 pre_typing:
     | var = LVarType { TVar var }
-    | t = LParseType { t }
+    | t = const_type { TConst t }
+    | LOpenPar ; t1 = typing ; args = nonempty_list(typing) ; LClosePar {
+        TApp {constructor = t1; args = Array.of_list args}
+    }
     | LOpenPar; args = nonempty_list(typing);LSimpleArrow;body = typing;LClosePar {
         (functype_curryfy args body).tpre
-    }
-    | LRef; t = typing {
-        TApp {constructor = { tpre = TConst TRef; tpos = position  $startpos($1) $endpos($1)  }; args = [|t|]}
     }
     | LOpenPar ; hd = typing ; LMul ; tail = separated_nonempty_list(LMul,typing) ; LClosePar  {
         TApp {constructor = { tpre = TConst TTuple; tpos = position  $startpos($1) $endpos($5)  }; args = Array.of_list (hd::tail)}
     }
+
+const_type:
+| LTInt { TInt }
+| LTUnit { TUnit }
+| LRef {TRef}
+
 
 
     

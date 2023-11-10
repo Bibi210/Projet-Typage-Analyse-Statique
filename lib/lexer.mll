@@ -5,13 +5,6 @@
     msg: string;
     pos: Lexing.position;
   }
-
-    let getToken t = 
-    match t with
-      | "int" -> LParseType (TConst TInt)
-      | "unit" -> LParseType (TConst TUnit)
-      | a -> LBasicIdent a
-
 }
 
 let alphanum = ['a'-'z' 'A'-'Z' '0'-'9' '_']*
@@ -48,10 +41,12 @@ rule token = parse
 | ">" {LGreater}
 | ";" {LSemiColon}
 | "ref" {LRef}
+| "int" {LTInt}
+| "unit" {LTUnit}
 | "!" {LDeref}
 | "," {LTupleInfixe}
 | vartype as v {LVarType v}
-| basic_ident as ident {getToken ident}
+| basic_ident as ident {LBasicIdent ident}
 | constructor_ident as ident {LConstructorIdent ident}
 | num+ as n       { Lint (int_of_string n) }
 | "//"  { single_line_comment lexbuf }
