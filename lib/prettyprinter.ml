@@ -91,7 +91,9 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | Deref x -> fprintf fmt "!%a" fmt_expr x
   | Seq x -> fprintf fmt "%a; %a" fmt_expr x.left fmt_expr x.right
   | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
-  | Construct x -> fprintf fmt "%a(%a)" fmt_constructor x.constructor fmt_expr_array x.args
+  | Construct x when x.constructor = ETuple -> fprintf fmt "(%a)" fmt_expr_array x.args
+  | Construct x ->
+    fprintf fmt "%a(%a)" fmt_constructor x.constructor fmt_expr_array x.args
 
 and fmt_expr typAnnot fmt expr =
   let fmt_pre_expr = fmt_pre_expr typAnnot in
