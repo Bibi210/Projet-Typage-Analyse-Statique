@@ -15,23 +15,19 @@ let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 let fmt_const fmt = function
   | TInt -> fmt_string fmt "int"
   | TUnit -> fmt_string fmt "unit"
-;;
-
-let fmt_type_constructor fmt ty =
-  match ty with
   | TRef -> fmt_string fmt "ref"
   | TLambda -> fmt_string fmt "lambda"
   | TTuple -> fmt_string fmt "tuple"
 ;;
 
 let rec fmt_pre_type fmt ty =
-  match ty.tpre with
+  match ty with
   | TVar v -> fmt_string fmt v
   | TConst x -> fprintf fmt "%a" fmt_const x
   | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_type x.polytype
-  | TApp x -> fprintf fmt "%a %a" fmt_type_constructor x.constructor fmt_type_array x.args
+  | TApp x -> fprintf fmt "%a %a" fmt_type x.constructor fmt_type_array x.args
 
-and fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty
+and fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty.tpre
 and fmt_type_array tyls = fmt_with_string_array "," fmt_type tyls
 
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right

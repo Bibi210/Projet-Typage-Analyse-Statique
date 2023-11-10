@@ -6,16 +6,14 @@ type variable =
 type ctype =
   | TInt
   | TUnit
+  | TRef
+  | TLambda
+  | TTuple
 
 type etype =
   { tpre : pre_type
   ; tpos : Helpers.position
   }
-
-and constructors =
-  | TRef
-  | TLambda
-  | TTuple
 
 and pre_type =
   | TVar of string
@@ -25,7 +23,7 @@ and pre_type =
       ; polytype : etype
       }
   | TApp of
-      { constructor : constructors
+      { constructor : etype
       ; args : etype array
       }
 

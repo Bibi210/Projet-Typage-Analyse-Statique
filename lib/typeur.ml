@@ -22,7 +22,7 @@ let rec occurCheck var typ =
   match typ.tpre with
   | TVar x when x = var -> true
   | TAny { polytype; _ } -> fix polytype
-  | TApp { constructor = _; args } -> Array.exists fix args
+  | TApp { constructor; args } -> Array.exists fix args || fix constructor
   | TConst _ | TVar _ -> false
 ;;
 
@@ -32,7 +32,9 @@ let rec substitute var newtyp oldtyp =
   | TVar x when x = var -> newtyp
   | TAny { id; polytype } -> { oldtyp with tpre = TAny { id; polytype = fix polytype } }
   | TApp { constructor; args } ->
-    { oldtyp with tpre = TApp { constructor; args = Array.map fix args } }
+    { oldtyp with
+      tpre = TApp { constructor = fix constructor; args = Array.map fix args }
+    }
   | TConst _ | TVar _ -> oldtyp
 ;;
 
@@ -55,7 +57,7 @@ let rec renameTVar oldName newName typ =
       (match typ.tpre with
        | TVar x when x = oldName -> TVar newName
        | TAny { id; polytype } -> TAny { id; polytype = fix polytype }
-       | TApp { constructor; args } -> TApp { constructor; args = Array.map fix args }
+       | TApp { constructor; args } -> TApp { constructor = fix constructor; args = Array.map fix args }
        | TConst _ | TVar _ -> typ.tpre)
   }
 ;;
@@ -81,12 +83,12 @@ let generalise typ env =
        | Some _ -> [], env
        | None -> [ x ], Env.add x typ env)
     | TConst _ -> [], env
-    | TApp { constructor = _; args } ->
+    | TApp { constructor ; args } ->
       Array.fold_left
         (fun (acc, env) x ->
           let acc', env' = generalise' x env in
           acc @ acc', env')
-        ([], env)
+        (generalise' constructor env)
         args
     | TAny _ -> failwith "Cannot a non instencied  type variable"
   in
@@ -115,7 +117,14 @@ let rec generateEquation node target env =
      let targ = generateTVar "" node.epos in
      let eq1 = generateEquation x targ env in
      { left = target
-     ; right = { tpos = node.epos; tpre = TApp { constructor = TRef; args = [| targ |] } }
+     ; right =
+         { tpos = node.epos
+         ; tpre =
+             TApp
+               { constructor = { tpre = TConst TRef; tpos = node.epos }
+               ; args = [| targ |]
+               }
+         }
      }
      :: eq1
    | Deref x ->
@@ -123,7 +132,13 @@ let rec generateEquation node target env =
      let eq1 =
        generateEquation
          x
-         { tpos = node.epos; tpre = TApp { constructor = TRef; args = [| targ |] } }
+         { tpos = node.epos
+         ; tpre =
+             TApp
+               { constructor = { tpre = TConst TRef; tpos = node.epos }
+               ; args = [| targ |]
+               }
+         }
          env
      in
      { left = target; right = targ } :: eq1
@@ -135,7 +150,13 @@ let rec generateEquation node target env =
      ({ left = { tpre = TConst TUnit; tpos = node.epos }; right = target }
       :: { left = tarea
          ; right =
-             { tpre = TApp { constructor = TRef; args = [| tnval |] }; tpos = tnval.tpos }
+             { tpre =
+                 TApp
+                   { constructor = { tpre = TConst TRef; tpos = area.epos }
+                   ; args = [| tnval |]
+                   }
+             ; tpos = tnval.tpos
+             }
          }
       :: eq1)
      @ eq2
@@ -147,7 +168,11 @@ let rec generateEquation node target env =
      { left = target
      ; right =
          { tpos = node.epos
-         ; tpre = TApp { constructor = TLambda; args = [| targ; tbody |] }
+         ; tpre =
+             TApp
+               { constructor = { tpre = TConst TLambda; tpos = node.epos }
+               ; args = [| targ; tbody |]
+               }
          }
      }
      :: eq1
@@ -157,7 +182,11 @@ let rec generateEquation node target env =
        generateEquation
          func
          { tpos = node.epos
-         ; tpre = TApp { constructor = TLambda; args = [| targ; target |] }
+         ; tpre =
+             TApp
+               { constructor = { tpre = TConst TLambda; tpos = func.epos }
+               ; args = [| targ; target |]
+               }
          }
          env
      in
@@ -192,7 +221,13 @@ let rec generateEquation node target env =
      Array.fold_left (fun acc x -> acc @ x) [] args_equations
      @ [ { left = target
          ; right =
-             { tpos = node.epos; tpre = TApp { constructor = TTuple; args = targs } }
+             { tpos = node.epos
+             ; tpre =
+                 TApp
+                   { constructor = { tpre = TConst TTuple; tpos = node.epos }
+                   ; args = targs
+                   }
+             }
          }
        ]
    | UnOp { op; arg } ->
@@ -225,7 +260,7 @@ and unify ls target =
        | _, TVar x when not (occurCheck x left) ->
          unify' (substituteAll x left tail) ({ right = left; left = right } :: result)
        | TApp { constructor; args }, TApp { constructor = constrb; args = argsb }
-         when constructor = constrb ->
+         when constructor.tpre = constrb.tpre ->
          if Array.length args <> Array.length argsb
          then raise (InternalError (Unification { left; right }))
          else (

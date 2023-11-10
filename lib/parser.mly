@@ -24,7 +24,7 @@
 
     let functype_curryfy args body =
     List.fold_right
-        (fun a acc -> { tpre =  TApp {constructor = TLambda; args = [| a ; acc|]} ; tpos = a.tpos })
+        (fun a acc -> { tpre =  TApp {constructor = { tpre = TConst TLambda; tpos = a.tpos } ; args = [| a ; acc|]} ; tpos = a.tpos })
         args
         body
     ;;
@@ -215,10 +215,10 @@ pre_typing:
         (functype_curryfy args body).tpre
     }
     | LRef; t = typing {
-        TApp {constructor = TRef; args = [|t|]}
+        TApp {constructor = { tpre = TConst TRef; tpos = position  $startpos($1) $endpos($1)  }; args = [|t|]}
     }
     | LOpenPar ; hd = typing ; LMul ; tail = separated_nonempty_list(LMul,typing) ; LClosePar  {
-        TApp {constructor = TTuple; args = Array.of_list (hd::tail)}
+        TApp {constructor = { tpre = TConst TTuple; tpos = position  $startpos($1) $endpos($5)  }; args = Array.of_list (hd::tail)}
     }
 
 

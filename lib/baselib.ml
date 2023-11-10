@@ -11,7 +11,10 @@ let stdpos = { Helpers.dummy_position with isSTD = true }
 let pre_to_type pre = { tpre = pre; tpos = stdpos }
 
 let std_lambda arg return =
-  TApp { constructor = TLambda; args = [| pre_to_type arg; pre_to_type return |] }
+  TApp
+    { constructor = pre_to_type (TConst TLambda)
+    ; args = [| pre_to_type arg; pre_to_type return |]
+    }
 ;;
 
 let std_binop arg1 arg2 return = std_lambda arg1 (std_lambda arg2 return)
