@@ -15,7 +15,6 @@ let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 let fmt_const fmt = function
   | TInt -> fmt_string fmt "int"
   | TUnit -> fmt_string fmt "unit"
-  | TLambda -> fmt_string fmt "lambda"
 ;;
 
 let fmt_type_constructor fmt ty =

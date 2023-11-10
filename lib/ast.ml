@@ -6,7 +6,6 @@ type variable =
 type ctype =
   | TInt
   | TUnit
-  | TLambda
 
 type etype =
   { tpre : pre_type
