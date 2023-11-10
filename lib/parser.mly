@@ -47,7 +47,6 @@
 %token LPut
 %token LTupleInfixe 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
-%token LTInt LTUnit
 
 %start <prog> prog
 %%
@@ -209,7 +208,13 @@ typing:
 
 pre_typing:
     | var = LVarType { TVar var }
-    | t = const_type { TConst t }
+    | basic_ident = LBasicIdent { 
+        match basic_ident with
+        | "int" -> TConst TInt
+        | "unit" -> TConst TUnit
+        | _ -> TVar basic_ident
+        }
+    | LRef ; { TConst TRef }
     | LOpenPar ; t1 = typing ; args = nonempty_list(typing) ; LClosePar {
         TApp {constructor = t1; args = Array.of_list args}
     }
@@ -220,10 +225,6 @@ pre_typing:
         TApp {constructor = { tpre = TConst TTuple; tpos = position  $startpos($1) $endpos($5)  }; args = Array.of_list (hd::tail)}
     }
 
-const_type:
-| LTInt { TInt }
-| LTUnit { TUnit }
-| LRef {TRef}
 
 
 

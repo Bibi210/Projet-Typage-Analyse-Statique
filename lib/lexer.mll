@@ -41,8 +41,6 @@ rule token = parse
 | ">" {LGreater}
 | ";" {LSemiColon}
 | "ref" {LRef}
-| "int" {LTInt}
-| "unit" {LTUnit}
 | "!" {LDeref}
 | "," {LTupleInfixe}
 | vartype as v {LVarType v}
