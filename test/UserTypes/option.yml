@@ -1,0 +1,10 @@
+titre: "Option"
+description: "Definiton d'un type option"
+prog: "
+  type option a = 
+  | None 
+  | Some of a
+  Some( (fun a -> Some (a)  : (t -> (option int) ) ) )"
+typeur: true
+IO: 
+  - "Some((fun a -> Some(a)))"

@@ -1,1 +1,0 @@
-((1,(fun a ->( a : (int * int))),3) : (int * ('a -> 'a) * int ))

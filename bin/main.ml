@@ -14,9 +14,10 @@ let () =
     close_in f;
     (* Print the AST *)
     print_endline "\nAST:";
-    Prettyprinter.print_prog output;
+    Prettyprinter.print_prog output.e;
     (* Print the type inference *)
     print_endline "\nType inference:";
+    Prettyprinter.print_typedef_list output.typedefs;
     Prettyprinter.print_type (Typeur.infer output);
     (* Print the type equations *)
     print_endline "\nType equations:";
@@ -24,8 +25,8 @@ let () =
     Prettyprinter.print_equation_list equations;
     (* Print the evaluation *)
     print_endline "\nEvaluation:";
-    let evaluated = Evaluator.betaReduce output in
-    Prettyprinter.print_evaluated_prog evaluated !Evaluator.memory;
+    let evaluated = Evaluator.betaReduce output.e in
+    Prettyprinter.print_evaluated_prog evaluated !Evaluator.memory
   with
   | Lexer.LexingError s -> Prettyprinter.print_error s.msg s.pos
   | Parser.Error -> Prettyprinter.print_error "Syntax error" (Lexing.lexeme_start_p buf)

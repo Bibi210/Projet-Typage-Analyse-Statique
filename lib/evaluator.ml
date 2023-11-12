@@ -1,7 +1,6 @@
 open Ast
 open Baselib
 open Helpers
-module Env = Map.Make (String)
 
 type eval_errors =
   | TyperCheck of expr
@@ -52,7 +51,8 @@ let rec alphaReverser expr =
        | Assign { area; nval } ->
          Assign { area = alphaReverser area; nval = alphaReverser nval }
        | Construct { constructor; args } ->
-         Construct { constructor; args = Array.map alphaReverser args })
+         Construct { constructor; args = alphaReverser args }
+       | Tuple x -> Tuple (Array.map alphaReverser x))
   }
 ;;
 
@@ -109,8 +109,8 @@ let alphaConverter expr =
       writeConvertion
         (Assign { area = alphaConverter' area env; nval = alphaConverter' nval env })
     | Construct { constructor; args } ->
-      writeConvertion
-        (Construct { constructor; args = Array.map (fun x -> alphaConverter' x env) args })
+      writeConvertion (Construct { constructor; args = alphaConverter' args env })
+    | Tuple x -> writeConvertion (Tuple (Array.map (fun x -> alphaConverter' x env) x))
   in
   alphaConverter' expr Env.empty
 ;;
@@ -135,7 +135,8 @@ let rec substitute id other expr =
   | Seq { left; right } -> writeConvertion (Seq { left = fix left; right = fix right })
   | Assign { area; nval } -> writeConvertion (Assign { area = fix area; nval = fix nval })
   | Construct { constructor; args } ->
-    writeConvertion (Construct { constructor; args = Array.map fix args })
+    writeConvertion (Construct { constructor; args = fix args })
+  | Tuple x -> writeConvertion (Tuple (Array.map fix x))
 ;;
 
 let memory = ref Env.empty
@@ -200,8 +201,9 @@ let betaReduce e =
           | None -> raise (InternalError (OutOfBound e)))
        | _ -> raise (InternalError (TyperCheck e)))
     | Construct { constructor; args } ->
-      let args = Array.map betaReduce' args in
+      let args = betaReduce' args in
       writeConvertion (Construct { constructor; args })
+    | Tuple x -> writeConvertion (Tuple (Array.map betaReduce' x))
     | Lambda _ | Const _ | Var _ -> expr
   in
   memory := Env.empty;

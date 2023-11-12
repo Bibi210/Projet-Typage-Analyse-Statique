@@ -1,3 +1,6 @@
+module Env = Map.Make (String)
+
+
 type position =
   { start_pos : Lexing.position
   ; end_pos : Lexing.position

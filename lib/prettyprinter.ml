@@ -2,6 +2,7 @@ open Format
 open Ast
 open Lexing
 open Helpers
+open TypingEnv
 
 let fmt_string = pp_print_string
 let fmt_variable fmt { id; _ } = pp_print_string fmt id
@@ -9,6 +10,7 @@ let fmt_with_string str = pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt str)
 let fmt_with_string_array str = pp_print_array ~pp_sep:(fun fmt () -> fprintf fmt str)
 let fmt_with_space pp fmt l = fmt_with_string " " pp fmt l
 let fmt_with_comma pp fmt l = fmt_with_string ", " pp fmt l
+let fmt_variable_list = fmt_with_comma fmt_variable
 let fmt_with_semicolon pp fmt l = fmt_with_string "; " pp fmt l
 let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
 
@@ -25,10 +27,11 @@ let rec fmt_pre_type fmt ty =
   | TVar v -> fmt_string fmt v
   | TConst x -> fprintf fmt "%a" fmt_const x
   | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_type x.polytype
-  | TApp x -> fprintf fmt "%a %a" fmt_type x.constructor fmt_type_array x.args
+  | TApp x -> fprintf fmt "(%a %a)" fmt_type x.constructor fmt_type_array x.args
 
-and fmt_type fmt ty = fprintf fmt "(%a)" fmt_pre_type ty.tpre
+and fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty.tpre
 and fmt_type_array tyls = fmt_with_string_array "," fmt_type tyls
+and fmt_type_list tyls = fmt_with_comma fmt_type tyls
 
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right
 let fmt_equation_list = fmt_with_comma fmt_equation
@@ -53,10 +56,6 @@ let fmt_binary_operator fmt = function
 let fmt_unary_operator fmt = function
   | Not -> fmt_string fmt "!"
   | Neg -> fmt_string fmt "-"
-;;
-
-let fmt_constructor fmt = function
-  | ETuple -> fmt_string fmt "tuple"
 ;;
 
 let rec fmt_pre_expr typAnnot fmt expr =
@@ -86,9 +85,9 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | Deref x -> fprintf fmt "!%a" fmt_expr x
   | Seq x -> fprintf fmt "%a; %a" fmt_expr x.left fmt_expr x.right
   | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
-  | Construct x when x.constructor = ETuple -> fprintf fmt "(%a)" fmt_expr_array x.args
   | Construct x ->
-    fprintf fmt "%a(%a)" fmt_constructor x.constructor fmt_expr_array x.args
+    fprintf fmt "%a(%a)" fmt_variable x.constructor fmt_expr x.args
+  | Tuple x -> fprintf fmt "(%a)" fmt_expr_array x
 
 and fmt_expr typAnnot fmt expr =
   let fmt_pre_expr = fmt_pre_expr typAnnot in
@@ -104,12 +103,63 @@ let fmt_expr_list typAnnot = fmt_with_comma (fmt_expr typAnnot)
 let fmt_pre_expr_list = fmt_with_comma (fmt_pre_expr true)
 let fmt_expr_list_without_type = fmt_with_comma fmt_expr_without_type
 
-module Env = Map.Make (String)
-
 let fmt_memory fmt mem =
   let fmt_mem_entry fmt (id, expr) = fprintf fmt "%s : %a" id (fmt_expr false) expr in
   let fmt_mem_entry_list = fmt_with_comma fmt_mem_entry in
   fprintf fmt "{%a}" fmt_mem_entry_list (Env.bindings mem)
+;;
+
+let fmt_construtors fmt newConstr =
+  fprintf
+    fmt
+    "@[%a of %a @]"
+    fmt_string
+    newConstr.constructor_ident
+    (fmt_with_string_array "*" fmt_type)
+    newConstr.content
+;;
+
+let fmt_construtors_list = fmt_with_string "\n|" fmt_construtors
+
+let fmt_typedef fmt def =
+  fprintf
+    fmt
+    "type %a %a = \n|%a"
+    fmt_string
+    def.basic_ident
+    fmt_variable_list
+    def.parameters
+    fmt_construtors_list
+    def.constructors
+;;
+
+let fmt_typingEnvEntry fmt (key, entry) =
+  fprintf
+    fmt
+    "%a -> %a from %a"
+    fmt_string
+    key
+    fmt_type_array
+    entry.constructor_content
+    fmt_pre_type
+    entry.owner
+;;
+
+let fmt_typingEnv fmt env =
+  let fmt_typingEnvEntry_list = fmt_with_semicolon fmt_typingEnvEntry in
+  fprintf fmt "[%a]" fmt_typingEnvEntry_list (Env.bindings env)
+;;
+
+let print_typingEnv env =
+  fmt_typingEnv Format.std_formatter env;
+  Format.print_newline ()
+;;
+
+let fmt_typedef_list = fmt_with_string "\n" fmt_typedef
+
+let print_typedef_list typedef_ls =
+  fmt_typedef_list Format.std_formatter typedef_ls;
+  Format.print_newline ()
 ;;
 
 let fmt_error fmt msg pos =

@@ -34,6 +34,7 @@ rule token = parse
 | "else" {LElse}
 | "+" {LAdd}
 | "-" {LNeg}
+| "|" {LOr}
 | "not" {LNot}
 | "*" {LMul}
 | "/" {LDiv}
@@ -43,6 +44,8 @@ rule token = parse
 | "ref" {LRef}
 | "!" {LDeref}
 | "," {LTupleInfixe}
+| "type" {LType}
+| "of" {LOf}
 | vartype as v {LVarType v}
 | basic_ident as ident {LBasicIdent ident}
 | constructor_ident as ident {LConstructorIdent ident}

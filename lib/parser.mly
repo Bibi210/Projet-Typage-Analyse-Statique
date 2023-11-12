@@ -38,21 +38,51 @@
     ;;
 %}
 %token EOF
-%token LOpenPar LClosePar LColon
+%token LOpenPar LClosePar LColon LRightAngleBraket LLeftAngleBraket
 %token <int>Lint
 %token <string> LBasicIdent LVarType LConstructorIdent
 
 %token LSimpleArrow LEqual
-%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref 
+%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref  LOf
 %token LPut
 %token LTupleInfixe 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
+%token LType
 
 %start <prog> prog
 %%
 
 prog:
-    | p = expr ; EOF { p }
+    | typedefs = list(def); e = expr ; EOF { 
+        { typedefs
+        ; e 
+        } 
+}
+
+def:
+| LType; basic_ident = LBasicIdent ; parameters = list(variable) ; LEqual ; 
+  option(LOr) ;constructors = separated_nonempty_list(LOr,newconstructor_case){
+    { dpos = position $startpos(basic_ident) $endpos(basic_ident);
+      basic_ident; 
+      parameters;
+      constructors
+    
+  }
+}
+
+newconstructor_case:
+| constructor_ident = LConstructorIdent{
+  { constructor_ident
+  ; content = [| {tpre = TConst TUnit ; tpos = position $startpos(constructor_ident) $endpos(constructor_ident) } |]
+  ; dcpos = position $startpos(constructor_ident) $endpos(constructor_ident)
+  }
+}
+| constructor_ident = LConstructorIdent; LOf ; etype = typing{
+  { constructor_ident
+  ; content = [|etype|]
+  ; dcpos = position $startpos(constructor_ident) $endpos(constructor_ident)
+  }
+}
     
 
 expr:
@@ -151,16 +181,22 @@ pre_expr:
     | LOpenPar; area = expr  ;  LPut ; nval = expr ; LClosePar {
         Assign {area; nval}
     }
-    | LOpenPar ; hd = expr ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,expr);LClosePar  {
-        Construct 
-            { constructor = ETuple
-            ; args = Array.of_list (hd::tail)
-            }
+    | t = tuple { t }
+    | ident =  constructor; tuple = tuple {
+         Construct { constructor =  ident ; args = {epre = tuple ; epos = position $startpos(tuple) $endpos(tuple); etyp_annotation = None} }
+    }
+    | ident =  constructor; LOpenPar ; expr = expr ; LClosePar {
+         Construct { constructor =  ident ; args =  expr}
+    }
+    (*! SHIFTREDUCE *)
+    | ident =  constructor  { 
+         Construct { constructor =  ident ; args = {epre = Const Unit; epos = position $startpos(ident) $endpos(ident) ; etyp_annotation = None } }
     }
 
-/*     | constructor = LConstructorIdent; args = nonempty_list(expr) {
-        Construct {constructor; args}
-    } */
+tuple:
+    | LOpenPar ; hd = expr ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,expr);LClosePar  {
+        Tuple (Array.of_list (hd::tail))
+    }
 
 const:
     | i = Lint { Int i }
@@ -168,6 +204,14 @@ const:
 
 variable:
     | var = LBasicIdent {
+        {
+            id = var; 
+            vpos = position $startpos(var) $endpos(var)
+        }
+    }
+
+constructor:
+    | var = LConstructorIdent {
         {
             id = var; 
             vpos = position $startpos(var) $endpos(var)

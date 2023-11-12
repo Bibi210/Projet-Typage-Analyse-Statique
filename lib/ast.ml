@@ -41,8 +41,6 @@ type un_op =
   | Neg
   | Not
 
-type econstructors = ETuple
-
 type expr =
   { epre : pre_expr
   ; epos : Helpers.position
@@ -94,15 +92,32 @@ and pre_expr =
       ; right : expr
       }
   | Construct of
-      { constructor : econstructors
-      ; args : expr array
+      { constructor : variable
+      ; args : expr
       }
+  | Tuple of expr array
 
 and econst =
   | Int of int
   | Unit
 
-type prog = expr
+type def =
+  { basic_ident : string
+  ; parameters : variable list
+  ; constructors : newconstructor_case list
+  ; dpos : Helpers.position
+  }
+
+and newconstructor_case =
+  { constructor_ident : string
+  ; content : etype array
+  ; dcpos : Helpers.position
+  }
+
+type prog =
+  { typedefs : def list
+  ; e : expr
+  }
 
 type equation =
   { left : etype

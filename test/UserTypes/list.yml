@@ -1,0 +1,8 @@
+titre: "List"
+description: "Definiton d'une liste chainee"
+prog: "
+  type list a = Nil | Cons of (a * (list a))
+  Cons(42,Cons(3,Nil))"
+typeur: true
+IO: 
+  - "Cons((42,Cons((3,Nil(())))))"

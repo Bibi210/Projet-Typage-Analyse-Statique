@@ -1,12 +1,12 @@
 open Ast
 open Baselib
 open Helpers
-module Env = Map.Make (String)
+open TypingEnv
 
 type typing_errors =
   | Unification of equation
   | Unbound of variable
-  | Substitution of etype
+  | UnboundConstructor of variable
 
 exception InternalError of typing_errors
 
@@ -50,18 +50,6 @@ let generateAny id typ pos = { tpos = pos; tpre = TAny { id; polytype = typ } }
 let targetString () = symbolGenerator "target"
 let unifyTarget progPos = { tpos = progPos; tpre = TVar (targetString ()) }
 
-let rec renameTVar oldName newName typ =
-  let fix = renameTVar oldName newName in
-  { typ with
-    tpre =
-      (match typ.tpre with
-       | TVar x when x = oldName -> TVar newName
-       | TAny { id; polytype } -> TAny { id; polytype = fix polytype }
-       | TApp { constructor; args } -> TApp { constructor = fix constructor; args = Array.map fix args }
-       | TConst _ | TVar _ -> typ.tpre)
-  }
-;;
-
 let generateConstTypeEquations node pos target =
   { left = target
   ; right =
@@ -83,14 +71,14 @@ let generalise typ env =
        | Some _ -> [], env
        | None -> [ x ], Env.add x typ env)
     | TConst _ -> [], env
-    | TApp { constructor ; args } ->
+    | TApp { constructor; args } ->
       Array.fold_left
         (fun (acc, env) x ->
           let acc', env' = generalise' x env in
           acc @ acc', env')
         (generalise' constructor env)
         args
-    | TAny _ -> failwith "Cannot a non instencied  type variable"
+    | TAny _ -> failwith "Cannot on a non instencied type variable"
   in
   let vars, _ = generalise' typ env in
   let polytype =
@@ -102,7 +90,8 @@ let generalise typ env =
   polytype
 ;;
 
-let rec generateEquation node target env =
+let rec generateEquation typeenv node target env =
+  let generateEquation = generateEquation typeenv in
   (match node.epre with
    | Var x ->
      [ (match Env.find_opt x env with
@@ -199,7 +188,7 @@ let rec generateEquation node target env =
      let eq3 = generateEquation fbranch target env in
      eq1 @ eq2 @ eq3
    | Let { varg; init; body } ->
-     let instancedType, subs = infer' init env in
+     let instancedType, subs = infer' typeenv init env in
      let env' = Env.add varg.id (generalise instancedType env) env in
      let res = subs @ generateEquation body target env' in
      res
@@ -215,7 +204,7 @@ let rec generateEquation node target env =
      let eq1 = generateEquation larg largtarget env in
      let eq2 = generateEquation rarg rargtarget env in
      ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
-   | Construct { constructor = ETuple; args } ->
+   | Tuple args ->
      let targs = Array.map (fun a -> generateTVar "Content" a.epos) args in
      let args_equations = Array.map2 (fun a t -> generateEquation a t env) args targs in
      Array.fold_left (fun acc x -> acc @ x) [] args_equations
@@ -230,6 +219,13 @@ let rec generateEquation node target env =
              }
          }
        ]
+   | Construct { constructor; args } ->
+     (match Env.find_opt constructor.id typeenv with
+      | Some def ->
+        let constructor_content, owner = instanciateTypingEntry def node.epos in
+        { left = target; right = owner }
+        :: generateEquation args constructor_content.(0) env
+      | None -> raise (InternalError (UnboundConstructor constructor)))
    | UnOp { op; arg } ->
      let op = find_unop op in
      let argtarget = { tpos = arg.epos; tpre = List.nth op.args_types 0 } in
@@ -290,30 +286,37 @@ and unify ls target =
   let ls_subsitutions = unify' ls [] in
   findResult ls_subsitutions, ls_subsitutions
 
-and infer' tree env =
+and infer' typeenv tree env =
   let target = unifyTarget tree.epos in
-  try unify (generateEquation tree target env) target.tpre with
+  try unify (generateEquation typeenv tree target env) target.tpre with
   | InternalError (Unification a) ->
     raise
       (TypingError
          { message = Prettyprinter.string_of_equation a
          ; location = a.left.tpos
          ; equation =
-             Prettyprinter.string_of_equation_list (generateEquation tree target env)
+             Prettyprinter.string_of_equation_list
+               (generateEquation typeenv tree target env)
          })
   | InternalError (Unbound v) ->
     raise
       (TypingError
          { message = "Unbound variable " ^ v.id; location = v.vpos; equation = "" })
+  | InternalError (UnboundConstructor c) ->
+    raise
+      (TypingError
+         { message = "Unbound constructor " ^ c.id; location = c.vpos; equation = "" })
 ;;
 
 let infer tree =
-  let result, _ = infer' tree Env.empty in
+  let typeenv, expr = createTypingEnv tree.typedefs, tree.e in
+  let result, _ = infer' typeenv expr Env.empty in
   result
 ;;
 
 let generateEquation tree =
   resetSymbolGenerator ();
   let _ = symbolGenerator "" in
-  generateEquation tree (unifyTarget tree.epos) Env.empty
+  let typeenv, expr = createTypingEnv tree.typedefs, tree.e in
+  generateEquation typeenv expr (unifyTarget expr.epos) Env.empty
 ;;
