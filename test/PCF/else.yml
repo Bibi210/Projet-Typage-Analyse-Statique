@@ -1,6 +1,6 @@
 titre: "Else"
 description: "Else then Reduce Test"
 prog: "if 1 then (fun a b -> (b : int)) else (fun x -> (x: ('b -> 'a) ))"
-typeur: true
+typeur: "(lambda (lambda int,int),(lambda int,int))"
 IO:
   - "(fun x -> x)"

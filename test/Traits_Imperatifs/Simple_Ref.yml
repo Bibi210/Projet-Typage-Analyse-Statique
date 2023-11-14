@@ -1,6 +1,6 @@
 titre: "Simple_Ref"
 description: "Création d'une référence et typage polymorphe"
 prog: "let a x = ref x in ( (a ((a 3) : (ref int)) ) : (ref (ref int)))"
-typeur: true
+typeur: "(ref (ref int))"
 IO:
   - "ref ptr"

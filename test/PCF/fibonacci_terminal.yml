@@ -7,6 +7,6 @@ prog: "
       else if (n == 1) then prec
       else (fibo (n + -1) ante (prec + ante)) in (fibo n 1 1)
     in (fibo 100)"
-typeur: true
+typeur: "int"
 IO: 
   - "3736710778780434371"

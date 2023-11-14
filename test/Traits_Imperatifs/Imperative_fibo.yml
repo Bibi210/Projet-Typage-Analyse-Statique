@@ -9,6 +9,6 @@ prog: " let ante = ref 1 in
               let save = !prec in
               ( ( prec put (!ante + !prec)); (ante put save) ;(fibo (n + -1)))
           in (fibo 24)"
-typeur: true
+typeur: "int"
 IO: 
   - "46368"

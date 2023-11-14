@@ -3,6 +3,6 @@ description: "Definiton d'une liste chaine non valide"
 prog: "
   type list a = Nil | Cons of (a * (list a))
   Cons(3,Cons( (fun a -> a) ,Cons(3,Nil)))"
-typeur: false
+typeur: ""
 IO: 
   []

@@ -5,6 +5,6 @@ prog: "
   | None 
   | Some of a
   Some( (fun a -> Some (a)  : (t -> (option int) ) ) )"
-typeur: true
+typeur: "(option (lambda int,(option int)))"
 IO: 
   - "Some((fun a -> Some(a)))"

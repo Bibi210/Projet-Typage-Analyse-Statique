@@ -1,6 +1,6 @@
 titre: "UnboundVar"
 description: "Use of unbound variable"
 prog: "b"
-typeur: false
+typeur: ""
 IO:
   []

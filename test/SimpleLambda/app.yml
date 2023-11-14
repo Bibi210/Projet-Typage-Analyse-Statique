@@ -1,6 +1,6 @@
 titre: "App"
 description: "Simple Reduce Test"
 prog: "(fun x -> x 32)"
-typeur: true
+typeur: "int"
 IO:
   - "32"

@@ -47,6 +47,10 @@ type expr =
   ; etyp_annotation : etype option
   }
 
+and econst =
+  | Int of int
+  | Unit
+
 and pre_expr =
   | App of
       { func : expr
@@ -97,9 +101,24 @@ and pre_expr =
       }
   | Tuple of expr array
 
-and econst =
-  | Int of int
-  | Unit
+and match_case =
+  { pattern : pattern
+  ; consequence : expr
+  }
+
+and pattern =
+  { pnode : pre_pattern
+  ; ploc : Helpers.position
+  }
+
+and pre_pattern =
+  | LitteralPattern of econst
+  | VarPattern of string
+  | TuplePattern of pattern array
+  | ConstructorPattern of
+      { constructor_ident : string
+      ; content : pattern
+      }
 
 type def =
   { basic_ident : string

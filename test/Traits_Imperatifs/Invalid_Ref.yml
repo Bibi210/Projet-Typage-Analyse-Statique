@@ -1,5 +1,5 @@
 titre: "Invalid_Ref"
 description: "Création d'une référence et typage polymorphe"
 prog: "let t c = let a = ref (c : int) in a  in (t (fun a -> a))"
-typeur: false
+typeur: ""
 IO: []

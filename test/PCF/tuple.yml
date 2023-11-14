@@ -1,6 +1,6 @@
 titre: "Tuples"
 description: "Testing Tuples"
 prog: "((1,(fun a ->( a : (int * int))),3) : (int * ('a -> 'a) * int ))"
-typeur: true
+typeur: "(tuple int,(lambda (tuple int,int),(tuple int,int)),int)"
 IO: 
   - "(1,(fun a -> a),3)"

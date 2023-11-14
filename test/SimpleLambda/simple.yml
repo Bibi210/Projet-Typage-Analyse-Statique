@@ -1,5 +1,5 @@
 titre: "Simple Test"
 description: "Simple Reduce Test"
 prog: "(fun x -> x (fun y -> y))"
-typeur: true
+typeur: "(lambda y,y)"
 IO: ["(fun y -> y)"]

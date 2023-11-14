@@ -15,12 +15,13 @@ let () =
     (* Print the AST *)
     print_endline "\nAST:";
     Prettyprinter.print_prog output.e;
-    (* Print the type inference *)
-    print_endline "\nType inference:";
+    print_endline "\nType Declarations:";
     Prettyprinter.print_typedef_list output.typedefs;
+    (* Print the type inference *)
+    print_endline "\nType Inference:";
     Prettyprinter.print_type (Typeur.infer output);
     (* Print the type equations *)
-    print_endline "\nType equations:";
+    print_endline "\nType Equations:";
     let equations = Typeur.generateEquation output in
     Prettyprinter.print_equation_list equations;
     (* Print the evaluation *)

@@ -85,8 +85,7 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | Deref x -> fprintf fmt "!%a" fmt_expr x
   | Seq x -> fprintf fmt "%a; %a" fmt_expr x.left fmt_expr x.right
   | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
-  | Construct x ->
-    fprintf fmt "%a(%a)" fmt_variable x.constructor fmt_expr x.args
+  | Construct x -> fprintf fmt "%a(%a)" fmt_variable x.constructor fmt_expr x.args
   | Tuple x -> fprintf fmt "(%a)" fmt_expr_array x
 
 and fmt_expr typAnnot fmt expr =
@@ -208,6 +207,11 @@ let string_of_expr_with_annot expr =
 
 let string_of_prog prog =
   fmt_expr_without_type Format.str_formatter prog;
+  Format.flush_str_formatter ()
+;;
+
+let string_of_type t =
+  fmt_type Format.str_formatter t;
   Format.flush_str_formatter ()
 ;;
 

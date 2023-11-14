@@ -15,13 +15,13 @@ type test =
   ; title : string
   ; description : string
   ; prog : string
-  ; typing : bool
+  ; typing : string
   ; io : string list
   }
 
 type results =
   { equation : string
-  ; evalTyping : bool
+  ; evalTyping : string
   ; ioResult : string list
   }
 
@@ -30,7 +30,7 @@ let mkTest f =
   { title = getString (getValue "titre")
   ; prog = getString (getValue "prog")
   ; description = getString (getValue "description")
-  ; typing = getBool (getValue "typeur")
+  ; typing = getString (getValue "typeur")
   ; io = getList getString (getValue "IO")
   ; filepath = f
   }
@@ -43,8 +43,8 @@ type asserts =
       ; given : string
       }
   | Typing of
-      { expected : bool
-      ; given : bool
+      { expected : string
+      ; given : string
       }
   | IOLen of
       { expected : int
@@ -58,22 +58,22 @@ let runTest test =
   let buf = Lexing.from_string test.prog in
   try
     let output = Parser.prog Lexer.token buf in
-    let _ = Typeur.infer output in
+    let infered = Typeur.infer output in
     let equation =
       Prettyprinter.string_of_equation_list (Typeur.generateEquation output)
     in
     let ioResult = [ Prettyprinter.string_of_prog (Evaluator.betaReduce output.e) ] in
-    { equation; evalTyping = true; ioResult }
+    { equation; evalTyping = Prettyprinter.string_of_type infered; ioResult }
   with
   | Parser.Error -> raise (ParserError (Lexing.lexeme_start_p buf))
-  | Typeur.TypingError e -> { equation = e.equation; evalTyping = false; ioResult = [] }
+  | Typeur.TypingError e -> { equation = e.equation; evalTyping = ""; ioResult = [] }
 ;;
 
 let raise e res = raise (AssertFailure (e, res))
 
 let assertTest test result =
-  if test.typing != result.evalTyping
-  then raise (Typing { expected = test.typing; given = result.evalTyping }) result;
+  if test.typing <> result.evalTyping
+  then raise (Typing { expected = test.typing ; given = result.evalTyping }) result;
   let expectedLen = List.length test.io in
   let givenLen = List.length result.ioResult in
   if expectedLen != givenLen
@@ -113,7 +113,7 @@ let showTest filePath =
      | IOLen { expected; given } ->
        Printf.eprintf "  IOLen :\n   expected: %d  \n   given: %d\n" expected given
      | Typing { expected; given } ->
-       Printf.eprintf "  Typing:\n   expected: %b \n   given: %b\n" expected given);
+       Printf.eprintf "  Typing:\n   expected: %s \n   given: %s\n" expected given);
     false
   | Lexer.LexingError e ->
     Printf.eprintf "LexingFailure of : %s\n" test.description;

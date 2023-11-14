@@ -71,12 +71,12 @@ let generalise typ env =
        | Some _ -> [], env
        | None -> [ x ], Env.add x typ env)
     | TConst _ -> [], env
-    | TApp { constructor; args } ->
+    | TApp { args; _ } ->
       Array.fold_left
         (fun (acc, env) x ->
           let acc', env' = generalise' x env in
           acc @ acc', env')
-        (generalise' constructor env)
+        ([], env)
         args
     | TAny _ -> failwith "Cannot on a non instencied type variable"
   in
@@ -308,10 +308,34 @@ and infer' typeenv tree env =
          { message = "Unbound constructor " ^ c.id; location = c.vpos; equation = "" })
 ;;
 
+let removeInstance symbol =
+  let index = String.index_opt symbol ':' in
+  match index with
+  | Some i ->
+    let newSymbol = String.sub symbol i (String.length symbol - i) in
+    String.sub newSymbol 1 (String.length newSymbol - 1)
+  | None -> symbol
+;;
+
+let rec alphaReverser etype =
+  { tpre =
+      (match etype.tpre with
+       | TVar x -> TVar (getNameFromSymbol (removeInstance x))
+       | TConst _ -> etype.tpre
+       | TApp { constructor; args } ->
+         TApp
+           { constructor 
+           ; args = Array.map alphaReverser args
+           }
+       | TAny { id; polytype } -> TAny { id; polytype = alphaReverser polytype })
+  ; tpos = etype.tpos
+  }
+;;
+
 let infer tree =
   let typeenv, expr = createTypingEnv tree.typedefs, tree.e in
   let result, _ = infer' typeenv expr Env.empty in
-  result
+  alphaReverser result
 ;;
 
 let generateEquation tree =

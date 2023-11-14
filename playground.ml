@@ -1,4 +1,2 @@
-type option a = 
-| None 
-| Some of a
-Some( (fun a -> Some (3)  : (t -> (option int) ) ) )
+
+  let a b = 32 in a

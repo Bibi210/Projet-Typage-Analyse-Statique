@@ -1,6 +1,6 @@
 titre: "Not operator"
 description: "Test the not operator"
 prog: "(not(3 + 4))"
-typeur: true
+typeur: "int"
 IO: 
   - "1"
