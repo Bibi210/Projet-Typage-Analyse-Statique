@@ -1,2 +1,1 @@
-
-  let a b = 32 in a
+(fun x -> let y = x in (y x))
