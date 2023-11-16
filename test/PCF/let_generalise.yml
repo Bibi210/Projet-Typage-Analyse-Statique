@@ -1,0 +1,5 @@
+titre: "let generalise"
+description: "Verify that let do not generalise the type of the variable"
+prog: "(fun x -> let y = x in (y x))"
+typeur: ""
+IO: []
