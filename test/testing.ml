@@ -7,7 +7,7 @@ let testDir = dirtyPrefix ^ "test/"
 let directories =
   List.map
     (fun elem -> testDir ^ elem ^ "/")
-    [ "SimpleLambda"; "PCF"; "Traits_Imperatifs"; "UserTypes" ]
+    [ "SimpleLambda"; "PCF"; "Traits_Imperatifs"; "UserTypes"; "ViciousLets" ]
 ;;
 
 type test =
@@ -73,7 +73,7 @@ let raise e res = raise (AssertFailure (e, res))
 
 let assertTest test result =
   if test.typing <> result.evalTyping
-  then raise (Typing { expected = test.typing ; given = result.evalTyping }) result;
+  then raise (Typing { expected = test.typing; given = result.evalTyping }) result;
   let expectedLen = List.length test.io in
   let givenLen = List.length result.ioResult in
   if expectedLen != givenLen
