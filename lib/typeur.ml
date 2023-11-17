@@ -45,7 +45,12 @@ let substituteAll var typ equations =
     equations
 ;;
 
-let generateTVar str pos = { tpos = pos; tpre = TVar (symbolGenerator str) }
+let generateTVar str pos env =
+  let symbol = symbolGenerator str in
+  let typ = { tpos = pos; tpre = TVar (symbolGenerator str) } in
+  Env.add symbol typ env, typ
+;;
+
 let generateAny id typ pos = { tpos = pos; tpre = TAny { id; polytype = typ } }
 let targetString () = symbolGenerator "target"
 let unifyTarget progPos = { tpos = progPos; tpre = TVar (targetString ()) }
@@ -103,7 +108,7 @@ let rec generateEquation typeenv node target env =
      let eq2 = generateEquation right target env in
      eq1 @ eq2
    | Ref x ->
-     let targ = generateTVar "" node.epos in
+     let env, targ = generateTVar "" node.epos env in
      let eq1 = generateEquation x targ env in
      { left = target
      ; right =
@@ -117,7 +122,7 @@ let rec generateEquation typeenv node target env =
      }
      :: eq1
    | Deref x ->
-     let targ = generateTVar "access" node.epos in
+     let env, targ = generateTVar "access" node.epos env in
      let eq1 =
        generateEquation
          x
@@ -132,8 +137,8 @@ let rec generateEquation typeenv node target env =
      in
      { left = target; right = targ } :: eq1
    | Assign { area; nval } ->
-     let tarea = generateTVar "area" node.epos in
-     let tnval = generateTVar "nval" node.epos in
+     let env, tarea = generateTVar "area" node.epos env in
+     let env, tnval = generateTVar "nval" node.epos env in
      let eq1 = generateEquation area tarea env in
      let eq2 = generateEquation nval tnval env in
      ({ left = { tpre = TConst TUnit; tpos = node.epos }; right = target }
@@ -150,8 +155,8 @@ let rec generateEquation typeenv node target env =
       :: eq1)
      @ eq2
    | Lambda { varg; body } ->
-     let targ = generateTVar "arg" node.epos in
-     let tbody = generateTVar "body" node.epos in
+     let env, targ = generateTVar "arg" node.epos env in
+     let env, tbody = generateTVar "body" node.epos env in
      let env' = Env.add varg.id targ env in
      let eq1 = generateEquation body tbody env' in
      { left = target
@@ -166,7 +171,7 @@ let rec generateEquation typeenv node target env =
      }
      :: eq1
    | App { func; carg } ->
-     let targ = generateTVar "call" node.epos in
+     let env, targ = generateTVar "call" node.epos env in
      let eq1 =
        generateEquation
          func
@@ -193,7 +198,7 @@ let rec generateEquation typeenv node target env =
      let res = subs @ generateEquation body target env' in
      res
    | Fix { varg; body } ->
-     let tbody = generateTVar "recbody" node.epos in
+     let env, tbody = generateTVar "recbody" node.epos env in
      let env' = Env.add varg.id tbody env in
      let eq1 = generateEquation body tbody env' in
      [ { left = target; right = tbody } ] @ eq1
@@ -205,7 +210,15 @@ let rec generateEquation typeenv node target env =
      let eq2 = generateEquation rarg rargtarget env in
      ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
    | Tuple args ->
-     let targs = Array.map (fun a -> generateTVar "Content" a.epos) args in
+     let env, targs =
+       Array.fold_left
+         (fun (env, ls) a ->
+           let env, t = generateTVar "conten" a.epos env in
+           env, t :: ls)
+         (env, [])
+         args
+     in
+     let targs = Array.of_list targs in
      let args_equations = Array.map2 (fun a t -> generateEquation a t env) args targs in
      Array.fold_left (fun acc x -> acc @ x) [] args_equations
      @ [ { left = target
