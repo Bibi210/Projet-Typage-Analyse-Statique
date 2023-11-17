@@ -150,11 +150,9 @@ let rec generateEquation typeenv node target env =
       :: eq1)
      @ eq2
    | Lambda { varg; body } ->
-     let generator = symbolGenerator varg.id in
-     let targ = { tpos = varg.vpos; tpre = TVar generator } in
+     let targ = generateTVar "arg" node.epos in
      let tbody = generateTVar "body" node.epos in
      let env' = Env.add varg.id targ env in
-     let env' = Env.add generator targ env' in
      let eq1 = generateEquation body tbody env' in
      { left = target
      ; right =
