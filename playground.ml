@@ -1,1 +1,1 @@
-(fun x -> let y = x in (y x))
+(fun x -> x (fun y -> y))

@@ -47,7 +47,7 @@ let substituteAll var typ equations =
 
 let generateTVar str pos env =
   let symbol = symbolGenerator str in
-  let typ = { tpos = pos; tpre = TVar (symbolGenerator str) } in
+  let typ = { tpos = pos; tpre = TVar symbol } in
   Env.add symbol typ env, typ
 ;;
 
@@ -66,6 +66,11 @@ let generateConstTypeEquations node pos target =
              | Unit -> TUnit)
       }
   }
+;;
+
+let showEnv env =
+  Env.iter (fun x y -> Printf.printf "(%s -> %s)" x (Prettyprinter.string_of_type y)) env;
+  print_endline ""
 ;;
 
 let generalise typ env =
@@ -97,157 +102,157 @@ let generalise typ env =
 
 let rec generateEquation typeenv node target env =
   let generateEquation = generateEquation typeenv in
-  (match node.epre with
-   | Var x ->
-     [ (match Env.find_opt x env with
-        | Some t -> { left = target; right = t }
-        | None -> raise (InternalError (Unbound { id = x; vpos = node.epos })))
-     ]
-   | Seq { left; right } ->
-     let eq1 = generateEquation left { tpos = left.epos; tpre = TConst TUnit } env in
-     let eq2 = generateEquation right target env in
-     eq1 @ eq2
-   | Ref x ->
-     let env, targ = generateTVar "" node.epos env in
-     let eq1 = generateEquation x targ env in
-     { left = target
-     ; right =
-         { tpos = node.epos
-         ; tpre =
-             TApp
-               { constructor = { tpre = TConst TRef; tpos = node.epos }
-               ; args = [| targ |]
-               }
-         }
-     }
-     :: eq1
-   | Deref x ->
-     let env, targ = generateTVar "access" node.epos env in
-     let eq1 =
-       generateEquation
-         x
-         { tpos = node.epos
-         ; tpre =
-             TApp
-               { constructor = { tpre = TConst TRef; tpos = node.epos }
-               ; args = [| targ |]
-               }
-         }
-         env
-     in
-     { left = target; right = targ } :: eq1
-   | Assign { area; nval } ->
-     let env, tarea = generateTVar "area" node.epos env in
-     let env, tnval = generateTVar "nval" node.epos env in
-     let eq1 = generateEquation area tarea env in
-     let eq2 = generateEquation nval tnval env in
-     ({ left = { tpre = TConst TUnit; tpos = node.epos }; right = target }
-      :: { left = tarea
-         ; right =
-             { tpre =
-                 TApp
-                   { constructor = { tpre = TConst TRef; tpos = area.epos }
-                   ; args = [| tnval |]
-                   }
-             ; tpos = tnval.tpos
-             }
-         }
-      :: eq1)
-     @ eq2
-   | Lambda { varg; body } ->
-     let env, targ = generateTVar "arg" node.epos env in
-     let env, tbody = generateTVar "body" node.epos env in
-     let env' = Env.add varg.id targ env in
-     let eq1 = generateEquation body tbody env' in
-     { left = target
-     ; right =
-         { tpos = node.epos
-         ; tpre =
-             TApp
-               { constructor = { tpre = TConst TLambda; tpos = node.epos }
-               ; args = [| targ; tbody |]
-               }
-         }
-     }
-     :: eq1
-   | App { func; carg } ->
-     let env, targ = generateTVar "call" node.epos env in
-     let eq1 =
-       generateEquation
-         func
-         { tpos = node.epos
-         ; tpre =
-             TApp
-               { constructor = { tpre = TConst TLambda; tpos = func.epos }
-               ; args = [| targ; target |]
-               }
-         }
-         env
-     in
-     let eq2 = generateEquation carg targ env in
-     eq2 @ eq1
-   | Const c -> [ generateConstTypeEquations c node.epos target ]
-   | If { cond; tbranch; fbranch } ->
-     let eq1 = generateEquation cond { tpos = node.epos; tpre = TConst TInt } env in
-     let eq2 = generateEquation tbranch target env in
-     let eq3 = generateEquation fbranch target env in
-     eq1 @ eq2 @ eq3
-   | Let { varg; init; body } ->
-     let instancedType, subs = infer' typeenv init env in
-     let env' = Env.add varg.id (generalise instancedType env) env in
-     let res = subs @ generateEquation body target env' in
-     res
-   | Fix { varg; body } ->
-     let env, tbody = generateTVar "recbody" node.epos env in
-     let env' = Env.add varg.id tbody env in
-     let eq1 = generateEquation body tbody env' in
-     [ { left = target; right = tbody } ] @ eq1
-   | BinOp { op; larg; rarg } ->
-     let op = find_binop op in
-     let largtarget = { tpos = larg.epos; tpre = List.nth op.args_types 0 } in
-     let rargtarget = { tpos = rarg.epos; tpre = List.nth op.args_types 1 } in
-     let eq1 = generateEquation larg largtarget env in
-     let eq2 = generateEquation rarg rargtarget env in
-     ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
-   | Tuple args ->
-     let env, targs =
-       Array.fold_left
-         (fun (env, ls) a ->
-           let env, t = generateTVar "conten" a.epos env in
-           env, t :: ls)
-         (env, [])
-         args
-     in
-     let targs = Array.of_list targs in
-     let args_equations = Array.map2 (fun a t -> generateEquation a t env) args targs in
-     Array.fold_left (fun acc x -> acc @ x) [] args_equations
-     @ [ { left = target
-         ; right =
-             { tpos = node.epos
-             ; tpre =
-                 TApp
-                   { constructor = { tpre = TConst TTuple; tpos = node.epos }
-                   ; args = targs
-                   }
-             }
-         }
-       ]
-   | Construct { constructor; args } ->
-     (match Env.find_opt constructor.id typeenv with
-      | Some def ->
-        let constructor_content, owner = instanciateTypingEntry def node.epos in
-        { left = target; right = owner }
-        :: generateEquation args constructor_content.(0) env
-      | None -> raise (InternalError (UnboundConstructor constructor)))
-   | UnOp { op; arg } ->
-     let op = find_unop op in
-     let argtarget = { tpos = arg.epos; tpre = List.nth op.args_types 0 } in
-     let eq1 = generateEquation arg argtarget env in
-     [ { left = target; right = { tpos = node.epos; tpre = op.return_type } } ] @ eq1)
+  (match node.etyp_annotation with
+   | Some t -> [ { left = t; right = target } ]
+   | None -> [])
   @
-  match node.etyp_annotation with
-  | Some t -> [ { left = t; right = target } ]
-  | None -> []
+  match node.epre with
+  | Var x ->
+    [ (match Env.find_opt x env with
+       | Some t -> { left = target; right = t }
+       | None -> raise (InternalError (Unbound { id = x; vpos = node.epos })))
+    ]
+  | Seq { left; right } ->
+    let eq1 = generateEquation left { tpos = left.epos; tpre = TConst TUnit } env in
+    let eq2 = generateEquation right target env in
+    eq1 @ eq2
+  | Ref x ->
+    let env, targ = generateTVar "" node.epos env in
+    let eq1 = generateEquation x targ env in
+    { left = target
+    ; right =
+        { tpos = node.epos
+        ; tpre =
+            TApp
+              { constructor = { tpre = TConst TRef; tpos = node.epos }
+              ; args = [| targ |]
+              }
+        }
+    }
+    :: eq1
+  | Deref x ->
+    let env, targ = generateTVar "access" node.epos env in
+    let eq1 =
+      generateEquation
+        x
+        { tpos = node.epos
+        ; tpre =
+            TApp
+              { constructor = { tpre = TConst TRef; tpos = node.epos }
+              ; args = [| targ |]
+              }
+        }
+        env
+    in
+    { left = target; right = targ } :: eq1
+  | Assign { area; nval } ->
+    let env, tarea = generateTVar "area" node.epos env in
+    let env, tnval = generateTVar "nval" node.epos env in
+    let eq1 = generateEquation area tarea env in
+    let eq2 = generateEquation nval tnval env in
+    ({ left = { tpre = TConst TUnit; tpos = node.epos }; right = target }
+     :: { left = tarea
+        ; right =
+            { tpre =
+                TApp
+                  { constructor = { tpre = TConst TRef; tpos = area.epos }
+                  ; args = [| tnval |]
+                  }
+            ; tpos = tnval.tpos
+            }
+        }
+     :: eq1)
+    @ eq2
+  | Lambda { varg; body } ->
+    let env, targ = generateTVar varg.id node.epos env in
+    let env, tbody = generateTVar "body" node.epos env in
+    let env' = Env.add varg.id targ env in
+    let eq1 = generateEquation body tbody env' in
+    { left = target
+    ; right =
+        { tpos = node.epos
+        ; tpre =
+            TApp
+              { constructor = { tpre = TConst TLambda; tpos = node.epos }
+              ; args = [| targ; tbody |]
+              }
+        }
+    }
+    :: eq1
+  | App { func; carg } ->
+    let env, targ = generateTVar "call" node.epos env in
+    let eq1 =
+      generateEquation
+        func
+        { tpos = node.epos
+        ; tpre =
+            TApp
+              { constructor = { tpre = TConst TLambda; tpos = func.epos }
+              ; args = [| targ; target |]
+              }
+        }
+        env
+    in
+    let eq2 = generateEquation carg targ env in
+    eq2 @ eq1
+  | Const c -> [ generateConstTypeEquations c node.epos target ]
+  | If { cond; tbranch; fbranch } ->
+    let eq1 = generateEquation cond { tpos = node.epos; tpre = TConst TInt } env in
+    let eq2 = generateEquation tbranch target env in
+    let eq3 = generateEquation fbranch target env in
+    eq1 @ eq2 @ eq3
+  | Let { varg; init; body } ->
+    let instancedType, subs = infer' typeenv init env in
+    let env' = Env.add varg.id (generalise instancedType env) env in
+    let res = subs @ generateEquation body target env' in
+    res
+  | Fix { varg; body } ->
+    let env, tbody = generateTVar "recbody" node.epos env in
+    let env' = Env.add varg.id tbody env in
+    let eq1 = generateEquation body tbody env' in
+    [ { left = target; right = tbody } ] @ eq1
+  | BinOp { op; larg; rarg } ->
+    let op = find_binop op in
+    let largtarget = { tpos = larg.epos; tpre = List.nth op.args_types 0 } in
+    let rargtarget = { tpos = rarg.epos; tpre = List.nth op.args_types 1 } in
+    let eq1 = generateEquation larg largtarget env in
+    let eq2 = generateEquation rarg rargtarget env in
+    ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
+  | Tuple args ->
+    let env, targs =
+      Array.fold_left
+        (fun (env, ls) a ->
+          let env, t = generateTVar "conten" a.epos env in
+          env, t :: ls)
+        (env, [])
+        args
+    in
+    let targs = Array.of_list targs in
+    let args_equations = Array.map2 (fun a t -> generateEquation a t env) args targs in
+    Array.fold_left (fun acc x -> acc @ x) [] args_equations
+    @ [ { left = target
+        ; right =
+            { tpos = node.epos
+            ; tpre =
+                TApp
+                  { constructor = { tpre = TConst TTuple; tpos = node.epos }
+                  ; args = targs
+                  }
+            }
+        }
+      ]
+  | Construct { constructor; args } ->
+    (match Env.find_opt constructor.id typeenv with
+     | Some def ->
+       let constructor_content, owner = instanciateTypingEntry def node.epos in
+       { left = target; right = owner }
+       :: generateEquation args constructor_content.(0) env
+     | None -> raise (InternalError (UnboundConstructor constructor)))
+  | UnOp { op; arg } ->
+    let op = find_unop op in
+    let argtarget = { tpos = arg.epos; tpre = List.nth op.args_types 0 } in
+    let eq1 = generateEquation arg argtarget env in
+    [ { left = target; right = { tpos = node.epos; tpre = op.return_type } } ] @ eq1
 
 and unify ls target =
   let rec unify' ls result =
