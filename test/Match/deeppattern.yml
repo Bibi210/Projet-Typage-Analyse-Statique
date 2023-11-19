@@ -1,0 +1,15 @@
+titre: "Deep Pattern"
+description: "Deep Pattern type checking"
+prog: "
+  type 'a option = 
+    | None
+    | Some of 'a
+
+  let t = Some (Some (1)) in 
+  match t with
+  | Some (Some x) -> x
+  | Some (Some x) -> (x : (int option))
+  | None -> 0
+  "
+typeur: ""
+IO: []

@@ -5,10 +5,9 @@ open Helpers
 type eval_errors =
   | TyperCheck of expr
   | Unbound of variable
-  | LambdaReduction of expr (* When the body of the function is only Fix of itself *)
-  | Timeout of expr
   | OutOfBound of expr
   | NonExhaustivePattern of expr
+  | DivisionByZero of expr
 
 exception InternalError of eval_errors
 
@@ -64,12 +63,6 @@ let rec alphaReverser expr =
        | App { func; carg } ->
          App { func = alphaReverser func; carg = alphaReverser carg }
        | Const _ -> expr.epre
-       | If { cond; tbranch; fbranch } ->
-         If
-           { cond = alphaReverser cond
-           ; tbranch = alphaReverser tbranch
-           ; fbranch = alphaReverser fbranch
-           }
        | Let { varg; init; body } ->
          Let
            { varg = renameVarId varg
@@ -119,13 +112,6 @@ let alphaConverter expr =
       writeConvertion
         (App { func = alphaConverter' func env; carg = alphaConverter' carg env })
     | Const _ -> expr
-    | If { cond; tbranch; fbranch } ->
-      writeConvertion
-        (If
-           { cond = alphaConverter' cond env
-           ; tbranch = alphaConverter' tbranch env
-           ; fbranch = alphaConverter' fbranch env
-           })
     | Let { varg; init; body } ->
       let new_id = symbolGenerator varg.id in
       let new_env = Env.add varg.id new_id env in
@@ -177,8 +163,6 @@ let rec substitute id other expr =
   | Lambda { varg; body } -> writeConvertion (Lambda { varg; body = fix body })
   | App { func; carg } -> writeConvertion (App { func = fix func; carg = fix carg })
   | Const _ -> expr
-  | If { cond; tbranch; fbranch } ->
-    writeConvertion (If { cond = fix cond; tbranch = fix tbranch; fbranch = fix fbranch })
   | Let { varg; init; body } ->
     writeConvertion (Let { varg; init = fix init; body = fix body })
   | Fix { varg; body } -> writeConvertion (Fix { varg; body = fix body })
@@ -240,14 +224,6 @@ let betaReduce e =
       (match betaReduce' func with
        | x when x = func -> writeConvertion (App { func; carg }) (* Redex but not func *)
        | func -> betaReduce' (writeConvertion (App { func; carg })))
-    | If { cond; tbranch; fbranch } ->
-      (match cond.epre with
-       | Const (Int 0) -> betaReduce' tbranch
-       | Const (Int _) -> betaReduce' fbranch
-       | _ ->
-         (match betaReduce' cond with
-          | x when x = cond -> raise (InternalError (TyperCheck cond))
-          | cond -> betaReduce' (writeConvertion (If { cond; tbranch; fbranch }))))
     | Let { varg; init; body } ->
       let init = betaReduce' init in
       betaReduce' (substitute varg.id init body)
@@ -256,7 +232,8 @@ let betaReduce e =
       let op = find_binop op in
       let larg = betaReduce' larg in
       let rarg = betaReduce' rarg in
-      writeConvertion (op.func [ larg.epre; rarg.epre ])
+      (try writeConvertion (op.func [ larg.epre; rarg.epre ]) with
+       | DivByZero -> raise (InternalError (DivisionByZero e)))
     | UnOp { op; arg } ->
       let op = find_unop op in
       let arg = betaReduce' arg in
@@ -281,7 +258,7 @@ let betaReduce e =
       let nval = betaReduce' nval in
       let addr = betaReduce' area in
       (match addr.epre with
-       | Ref { epre = Var addr; _ } when getNameFromSymbol addr = "ptr"  ->
+       | Ref { epre = Var addr; _ } when getNameFromSymbol addr = "ptr" ->
          (match Env.find_opt addr !memory with
           | Some _ ->
             memory := Env.add addr nval !memory;
@@ -318,14 +295,12 @@ let betaReduce e =
       (match err with
        | TyperCheck e -> EvalError { message = "Type Checking Leak"; location = e.epos }
        | Unbound v -> EvalError { message = "Unbound variable"; location = v.vpos }
-       | LambdaReduction e ->
-         EvalError { message = "Lambda Reduction Failure"; location = e.epos }
-       | Timeout e ->
-         let msg = Prettyprinter.string_of_expr e in
-         EvalError { message = "Timeout on : " ^ msg; location = e.epos }
        | OutOfBound e -> EvalError { message = "Out of bound"; location = e.epos }
        | NonExhaustivePattern e ->
          let msg = Prettyprinter.string_of_expr e in
          EvalError
-           { message = "Non exhaustive pattern match on : " ^ msg; location = e.epos })
+           { message = "Non exhaustive pattern match on :\n" ^ msg; location = e.epos }
+       | DivisionByZero e ->
+         let msg = Prettyprinter.string_of_expr e in
+         EvalError { message = "Division by zero : \n" ^ msg; location = e.epos })
 ;;

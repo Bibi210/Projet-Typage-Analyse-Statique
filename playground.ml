@@ -1,15 +1,23 @@
-
 type 'a list = 
-| Nil 
-| Cons of ('a * ( 'a list))
+  | Nil 
+  | Cons of ('a * ( 'a list))
 
+  type 'a option = 
+    | None
+    | Some of 'a
 
-let hd l = 
-   match l with 
-    | Cons (x, xs) -> x 
-    | Nil -> 0 ;;
+  let rec listbase n = 
+    match n with 
+        0 -> Nil
+      | _ -> Cons (n, (listbase (n + (-1)))) ;;
 
+  let hd l = 
+    match l with 
+        Nil -> None
+      | Cons (x, xs) -> Some(x) ;;
 
-let l = ref (Nil) in 
-let toput = Cons(fun a -> a,Nil) in
-let a = (l put toput) in ((hd !l) + 2)
+  let rec map f l = 
+    match l with 
+      Nil -> Nil
+    | Cons (x, xs) -> Cons ( (f x), (map f xs)) ;;
+  (map (fun a -> (a*a)) (listbase 10))

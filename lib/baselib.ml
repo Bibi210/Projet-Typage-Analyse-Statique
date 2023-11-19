@@ -1,6 +1,8 @@
 open Ast
 module STDLIB = Map.Make (String)
 
+exception DivByZero
+
 type operator =
   { args_types : pre_type list
   ; return_type : pre_type
@@ -71,6 +73,7 @@ let div =
   ; return_type = TConst TInt
   ; func =
       (function
+        | [ _; Const (Int 0) ] -> raise DivByZero
         | [ Const (Int a); Const (Int b) ] -> Const (Int (a / b))
         | x -> imposibleCrash x)
   }

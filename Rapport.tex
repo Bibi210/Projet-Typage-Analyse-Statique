@@ -122,7 +122,7 @@ avec typage}
   \apptocmd{\@title}{\par {\large #1 \par}}{}{}
 }
 \makeatother
-\subtitle{Typeur, Evaluateur , Parser}
+\subtitle{Typeur, Evaluateur , Analyseur Syntaxique}
 \author{Dibassi Brahima 21210230}
 \date{2023-11-19}
 
@@ -138,6 +138,13 @@ avec typage}
 }
 \newpage
 
+\newcommand{\grammarRule}[1]{\; \textbf{<\textcolor{Blue}{#1}>} \;}
+\newcommand{\grammarRuleUnSpaced}[1]{\textbf{<\textcolor{Blue}{#1}>}}
+\newcommand{\nTime}[1]{\; #1\text{*} \;}
+\newcommand{\nPlus}[1]{\; #1\text{+} \;}
+\newcommand{\isToken}[1]{\; \textit{`\textcolor{Maroon}{#1}`} \;}
+\newcommand{\isRangeToken}[2]{\; \textit{`\textcolor{Maroon}{#1} - \textcolor{Maroon}{#2}`} \;}
+
 \section{Langage de programmation
 choisi}\label{langage-de-programmation-choisi}
 
@@ -147,37 +154,26 @@ Ayant déjà expérimenté l'implémentation de l'interpréteur d'un langage
 en OCaml suite au cours d' \textbf{APS}, nous avons pu constater que ce
 langage était très adapté à ce genre de projet.\\
 Grâce à la somme de produits au pattern-matching associé, et au support
-des paradigmes, imperatif et fonctionnel, nous avons pu nous servir des
+des paradigmes, impératif et fonctionnel, nous avons pu nous servir des
 différents traits du langage afin de faciliter notre implémentation de
 l'évaluateur et du typeur.
 
 \section{Lancement du projet}\label{lancement-du-projet}
 
-Afin de compiler notre projet il suffit d'être à la racine de chaque
-version d'APS et de lancer :
-
-\begin{Shaded}
-\begin{Highlighting}[]
-    \ExtensionTok{dune}\NormalTok{ build}
-\end{Highlighting}
-\end{Shaded}
-
-Pour les versions du langage supérieures à APS1A, nous proposons
-également un lancement automatisé de notre batterie de tests. La
-commande est :
-
-\begin{Shaded}
-\begin{Highlighting}[]
-    \ExtensionTok{dune}\NormalTok{ test }\AttributeTok{{-}{-}force}
-\end{Highlighting}
-\end{Shaded}
-
-Si vous souhaitez lancer votre fichier à travers toutes les étapes, il
-est également possible d'utiliser la commande suivante :
+Si vous souhaitez lancer votre fichier utilisez la commande suivante :
 
 \begin{Shaded}
 \begin{Highlighting}[]
     \ExtensionTok{dune}\NormalTok{ exec ProjetTAS }\PreprocessorTok{*}\NormalTok{chemin vers le fichier à tester}\PreprocessorTok{*}\NormalTok{/}\PreprocessorTok{*}\NormalTok{fichier}\PreprocessorTok{*}\NormalTok{.ml}
+\end{Highlighting}
+\end{Shaded}
+
+Nous proposons également un lancement automatisé de notre batterie de
+tests. La commande est :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+    \ExtensionTok{dune}\NormalTok{ test }\AttributeTok{{-}{-}force}
 \end{Highlighting}
 \end{Shaded}
 
@@ -252,16 +248,413 @@ langage devant également passer les tests des versions précédentes.
 
 \section{Syntaxe du langage}\label{syntaxe-du-langage}
 
-\section{Difficultés rencontrées}\label{difficultuxe9s-rencontruxe9es}
+Une grande partie de la syntaxe du langage est reprise d'un projet
+précédent, le langage MiniML.\\
+
+\subsection{Programme}\label{programme}
+
+On définit un programme comme une expression précédée de zéro ou
+plusieurs définitions néccessaires à son évaluation. \begin{align*}
+      \; \textbf{<\textcolor{Blue}{Prog}>} \; ::= \quad & |\quad \; \textbf{<\textcolor{Blue}{Expr}>} \;                                  \\
+                                   & |\quad \; \textbf{<\textcolor{Blue}{Def}>} \;  \; \textit{`\textcolor{Maroon}{;;}`} \;  \; \textbf{<\textcolor{Blue}{Prog}>} \;
+\end{align*}
+
+\subsection{Elément nommés}\label{eluxe9ment-nommuxe9s}
+
+On appelle éléments nommés, les identificateurs
+\; \textbf{<\textcolor{Blue}{Id}>} \; pour les variables, motifs et
+types, les identificateurs de constructeurs
+\; \textbf{<\textcolor{Blue}{ConstructeurId}>} \; et les variables de
+types \; \textbf{<\textcolor{Blue}{Vartype}>} \;
+
+\begin{align*}
+      \; \textbf{<\textcolor{Blue}{Id}>} \; ::= \quad             & \; [\; \textit{`\textcolor{Maroon}{a} - \textcolor{Maroon}{z}`} \; \; \textit{`\textcolor{Maroon}{A} - \textcolor{Maroon}{Z}`} \; \; \textit{`\textcolor{Maroon}{0} - \textcolor{Maroon}{9}`} \; \; \textit{`\textcolor{Maroon}{\_}`} \;]\text{+} \; \\
+      \; \textbf{<\textcolor{Blue}{ConstructeurId}>} \; ::= \quad & [\; \textit{`\textcolor{Maroon}{A} - \textcolor{Maroon}{Z}`} \;] \; \textbf{<\textcolor{Blue}{Id}>} \;                                             \\
+      \; \textbf{<\textcolor{Blue}{Vartype}>} \; ::= \quad        & \; \textit{`\textcolor{Maroon}{'}`} \;[\; \textit{`\textcolor{Maroon}{a} - \textcolor{Maroon}{z}`} \;] \; \; [\; \textit{`\textcolor{Maroon}{0} - \textcolor{Maroon}{9}`} \;]\text{*} \;
+\end{align*}
+
+\subsection{Types}\label{types}
+
+\begin{itemize}
+      \tightlist
+      \item
+            Les \textbf{Types polymorphique}.
+      \item
+            Les \textbf{Utilisation de variables de types}.
+      \item
+            Les \textbf{Applications de types}.
+      \item
+            Les \textbf{Lambda}.
+      \item
+            Les \textbf{Tuples}.
+\end{itemize}
+
+\begin{align*}
+      \; \textbf{<\textcolor{Blue}{Type}>} \;    \quad ::=  \quad & |\quad \; \textbf{<\textcolor{Blue}{Vartype}>} \;                              \\
+                                             & |\quad \; \textbf{<\textcolor{Blue}{Id}>} \;                                   \\
+                                             & |\quad \; \textbf{<\textcolor{Blue}{Type}>} \;   \; \textbf{<\textcolor{Blue}{Type}>} \;            \\
+                                             & |\quad \; \textbf{<\textcolor{Blue}{Type}>} \; \; \textit{`\textcolor{Maroon}{->}`} \; \; \textbf{<\textcolor{Blue}{Type}>} \; \\
+                                             & |\quad \; \textbf{<\textcolor{Blue}{Type}>} \; \; \textit{`\textcolor{Maroon}{*}`} \;  \; \textbf{<\textcolor{Blue}{Type}>} \; \\
+\end{align*}
+
+\pagebreak
+
+\subsection{Déclarations de types}\label{duxe9clarations-de-types}
+
+\begin{align*}
+                                  & \quad \; \textit{`\textcolor{Maroon}{type}`} \; \; \textbf{<\textcolor{Blue}{Vartype}>}\text{*} \; \; \textbf{<\textcolor{Blue}{Id}>} \; \; \textit{`\textcolor{Maroon}{=}`} \; \; \textbf{<\textcolor{Blue}{NewContructors}>} \; \\
+\end{align*}
+
+\subsubsection{Nouveaux constructeurs}\label{nouveaux-constructeurs}
+
+\begin{align*}
+      \; \textbf{<\textcolor{Blue}{NewContructors}>} \; ::=   \quad & |\quad  \; \textbf{<\textcolor{Blue}{ConstructeurId}>} \; \; \textit{`\textcolor{Maroon}{of}`} \; \; \textbf{<\textcolor{Blue}{Type}>} \;                                            \\
+                                               & |\quad  \; \textbf{<\textcolor{Blue}{NewContructors}>} \; \; \textit{`\textcolor{Maroon}{|}`} \; \; \textbf{<\textcolor{Blue}{NewContructors}>} \;                                   \\
+\end{align*}
+
+\subsection{Expressions}\label{expressions}
+
+\begin{itemize}
+      \tightlist
+      \item
+            Les \textbf{Littéraux}.
+      \item
+            Les \textbf{Utilisations de Variables}.
+      \item
+            Les \textbf{Appels d'opérateurs} unaire et binaire.
+      \item
+            Les \textbf{Appels de fonctions}.
+      \item
+            Les \textbf{Tuples}.
+      \item
+            Les \textbf{Lambda}.
+      \item
+            Les \textbf{Fonctions Récursives}.
+      \item
+            Les \textbf{Constructions}.
+      \item
+            Les \textbf{Correspondance de motifs}.
+\end{itemize}
+
+\begin{align*}
+      \; \textbf{<\textcolor{Blue}{Litteral}>} \;  \quad ::=  \quad       & |\quad \; [\; \textit{`\textcolor{Maroon}{0} - \textcolor{Maroon}{9}`} \;]\text{+} \;                                                                                                                                                  \\
+                                                     & |\quad \; \textit{`\textcolor{Maroon}{(}`} \; \; \textit{`\textcolor{Maroon}{)}`} \;                                                                                                                                                        \\
+      \\
+      \; \textbf{<\textcolor{Blue}{Expr}>} \;  \quad ::=  \quad           & |\quad \; \textbf{<\textcolor{Blue}{Litteral}>} \;                                                                                                                                                         \\
+                                                     & |\quad \; \textbf{<\textcolor{Blue}{Id}>} \;                                                                                                                                                               \\
+                                                     & |\quad \; \textbf{<\textcolor{Blue}{UnaryOperator}>} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                                                \\
+                                                     & |\quad  \; \textbf{<\textcolor{Blue}{Expr}>} \; \; \textbf{<\textcolor{Blue}{BinaryOperator}>} \;    \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                         \\
+                                                     & |\quad \; \textbf{<\textcolor{Blue}{Expr}>} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                                                         \\
+                                                     & |\quad \; \textbf{<\textcolor{Blue}{Expr}>} \; \; \textit{`\textcolor{Maroon}{,}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                                             \\
+                                                     & |\quad \; \textit{`\textcolor{Maroon}{fun}`} \; \; \textbf{<\textcolor{Blue}{Id}>} \; \; \textit{`\textcolor{Maroon}{->}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                                \\
+                                                     & |\quad \; \textit{`\textcolor{Maroon}{let}`} \; \; \textbf{<\textcolor{Blue}{Id}>} \; \; \textbf{<\textcolor{Blue}{Id}>} \; \; \textit{`\textcolor{Maroon}{=}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;  \; \textit{`\textcolor{Maroon}{in}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                         \\
+                        & |\quad \; \textit{`\textcolor{Maroon}{let}`} \; \; \textit{`\textcolor{Maroon}{rec}`} \;  \; \textbf{<\textcolor{Blue}{Id}>} \; \; \textit{`\textcolor{Maroon}{=}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;  \; \textit{`\textcolor{Maroon}{in}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                         
+                                                                                        \\
+                                                     & |\quad \; \textbf{<\textcolor{Blue}{ConstructeurId}>} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;                                                                                                                               \\
+                                                     & |\quad \; \textit{`\textcolor{Maroon}{match}`} \; \; \textbf{<\textcolor{Blue}{Expr}>} \; \; \textit{`\textcolor{Maroon}{with}`} \; \; \textbf{<\textcolor{Blue}{MatchCase}>} \;                                                                                                      \\
+\end{align*}
+
+\subsection{Filtrage de motifs}\label{filtrage-de-motifs}
+
+\begin{itemize}
+      \tightlist
+      \item
+            Les patterns sur \textbf{Littéraux}.
+      \item
+            Les patterns sur \textbf{Variables}.
+      \item
+            Les patterns sur \textbf{Tuple}.
+      \item
+            Les patterns sur \textbf{Constructeurs}.
+\end{itemize}
+
+\begin{align*}
+      \; \textbf{<\textcolor{Blue}{MatchCase}>} \;  \quad ::=  \quad & |\quad  \; \textbf{<\textcolor{Blue}{Pattern}>} \; \; \textit{`\textcolor{Maroon}{->}`} \;  \; \textbf{<\textcolor{Blue}{Expr}>} \;     \\
+                                                & |\quad \; \textbf{<\textcolor{Blue}{MatchCase}>} \; \; \textit{`\textcolor{Maroon}{|}`} \; \; \textbf{<\textcolor{Blue}{MatchCase}>} \; \\
+      \\
+      \; \textbf{<\textcolor{Blue}{Pattern}>} \; \quad ::=  \quad    & |\quad \; \textbf{<\textcolor{Blue}{Litteral}>} \;                                      \\
+                                                & |\quad \; \textbf{<\textcolor{Blue}{Id}>} \;                                            \\
+                                                & |\quad \; \textbf{<\textcolor{Blue}{Pattern}>} \;  \; \textit{`\textcolor{Maroon}{,}`} \; \; \textbf{<\textcolor{Blue}{Pattern}>} \;    \\
+                                                & |\quad \; \textbf{<\textcolor{Blue}{ConstructeurId}>} \; \; \; \textbf{<\textcolor{Blue}{Pattern}>} \;       \\
+\end{align*}
+
+\pagebreak
+
+\section{Let Polymorphique}\label{let-polymorphique}
+
+Durant la réalisation de ce projet, nous avons rencontré une difficulté
+majeure, celle de la gestion du polymorphisme qui a été un véritable
+challenge pour nous.\\
+
+En effet, nous avons dû faire face à plusieurs problèmes :
+
+\begin{enumerate}
+      \item
+            La gestion de l'environnement des types
+      \item
+            La généralisation des types
+      \item
+            La remontée des substitutions induite par l'unification
+\end{enumerate}
+
+Afin de résoudre ces problèmes, nous avons dû revoir notre gestion de
+l'environnement des types plusieurs fois.\\
+
+Dans un premier temps, notre environnement des types était un simple set
+de variables de types. Collectant les variables de types lors de leur
+création. Hélas cette implémentation ne nous permettait pas de récupérer
+les nouvelles variables de type créées lors de la récupération des
+substitutions.\\
+
+La solution que nous avons mise en place afin de résoudre ce problème a
+été de récupérer toutes les substitutions induites par le typeur et de
+les appliquer à l'environnement des types. De plus, nous ajoutons toutes
+les substitutions induites par la généralisation à la génération
+d'équations courante.
+
+\pagebreak
 
 \section{Extensions}\label{extensions}
 
-\subsection{Types Utilisateurs}\label{types-utilisateurs}
-
-\subsection{MatchPattern}\label{matchpattern}
+Dans cette partie nous allons présenter les différentes extensions que
+nous avons implémentées dans notre langage. Pour chacune d'entre elles
+une implémentation de l'évaluateur et du typeur a été réalisée.
 
 \subsection{Annotations de type}\label{annotations-de-type}
 
+Afin de simplifier les tests sur notre typeur, nous avons implémenté la
+possibilité d'annoter les expressions avec leur type attendu.\\
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{let}\NormalTok{ intId a = (a : }\DataTypeTok{int}\NormalTok{) }\KeywordTok{in}\NormalTok{ (intId }\DecValTok{1}\NormalTok{) }\CommentTok{(* Type *)}
+\KeywordTok{let}\NormalTok{ intId a = (a : }\DataTypeTok{int}\NormalTok{) }\KeywordTok{in}\NormalTok{ (intId (}\KeywordTok{fun}\NormalTok{ a {-}\textgreater{} a)) }\CommentTok{(* Type Error *)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Types Utilisateurs}\label{types-utilisateurs}
+
+Pour generaliser les cas listes chainées et option, nous avons
+implémenté la possibilité de définir des types utilisateurs.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{type}\NormalTok{ \textquotesingle{}a }\DataTypeTok{list}\NormalTok{ = }
+\NormalTok{  | Nil }
+\NormalTok{  | Cons }\KeywordTok{of}\NormalTok{ (\textquotesingle{}a * (\textquotesingle{}a }\DataTypeTok{list}\NormalTok{))}
+
+\KeywordTok{type}\NormalTok{ \textquotesingle{}a }\DataTypeTok{option}\NormalTok{ = }
+\NormalTok{  | }\DataTypeTok{None}
+\NormalTok{  | }\DataTypeTok{Some} \KeywordTok{of}\NormalTok{ \textquotesingle{}a}
+\end{Highlighting}
+\end{Shaded}
+
+Au sein du typeur, ces définitions de types sont traduites en source
+d'instances de type. Ainsi, lors de la vérification de type, les types
+utilisateurs sont traités comme des types issus d'une généralisation.
+Pour pouvoir utiliser ces définitions, un environnement est créé au
+début du programme afin de mettre en association les constructeurs avec
+leur définitions et le type qu'ils construisent.
+
+\pagebreak
+
+\subsection{MatchPattern Profond}\label{matchpattern-profond}
+
+Afin de pouvoir utiliser correctement les types utilisateurs, nous avons
+implémenté la possibilité de faire du filtrage de motifs profonds.\\
+
+Il prend la forme suivante :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{let}\NormalTok{ t = }\DataTypeTok{Some}\NormalTok{ (}\DataTypeTok{Some}\NormalTok{ (}\DecValTok{1}\NormalTok{)) }\KeywordTok{in} 
+\KeywordTok{match}\NormalTok{ t }\KeywordTok{with}
+\NormalTok{| }\DataTypeTok{Some}\NormalTok{ (}\DataTypeTok{Some}\NormalTok{ x) {-}\textgreater{} x}
+\NormalTok{| }\DataTypeTok{Some}\NormalTok{ (}\DataTypeTok{Some}\NormalTok{ x) {-}\textgreater{} (x : (}\DataTypeTok{int} \DataTypeTok{ref}\NormalTok{)) }\CommentTok{(* Ici ne type pas *)}
+\NormalTok{| }\DataTypeTok{None}\NormalTok{ {-}\textgreater{} }\DecValTok{0}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Analyse Statique}\label{analyse-statique}
+
+L' analyse Statique vérifie ici 4 informations :
+
+\begin{enumerate}
+      \item
+            Le type des patterns est bien conforme au type de l'expression filtrée
+      \item
+            Le type de retour de chaque branche est bien conforme au type de retour de l'expression filtrée
+      \item
+            Que l'expression de retour de chaque branche n'utilise pas de variables non définies
+      \item
+            L'absence de doublons dans les variables de motifs
+\end{enumerate}
+
+\subsubsection{Evaluation}\label{evaluation}
+
+L'évaluation s'est avérée un peu plus complexe, car il a fallu mettre en
+place un parcours de graphe afin de pouvoir associer les variables de
+motifs aux valeurs correspondantes dans l'expression filtrée.
+
+\pagebreak
+
 \subsection{Gestion des erreurs}\label{gestion-des-erreurs}
+
+Nous avons implémenté une gestion des erreurs afin de pouvoir afficher
+des messages d'erreurs plus explicites.\\
+Il est important de noter qu'on ne parle pas ici d'erreurs définies
+explicitement par l'utilisateur, mais d'erreurs liées à une mauvaise
+utilisation, à une détection par analyse statique ou à une erreur
+d'évaluation.
+
+\subsubsection{Analyse Statique}\label{analyse-statique-1}
+
+En plus des garenties de typage, nous avons implémenté des erreurs de
+typage afin de pouvoir afficher des messages d'erreurs plus explicites.
+
+\begin{itemize}
+\tightlist
+\item
+  Utilisation de variables non définies
+\item
+  Utilisation de constructeurs non définis
+\item
+  Double utilisation de variables au sein d'un même pattern
+\end{itemize}
+
+Lorsque l'une de ces erreurs est détectée, ou lorsque l'unification
+échoue, nous affichons un message d'erreur explicite mentionnant la
+ligne et la colonne de début et de fin de l'expression concernée, de
+plus nous affichons l'équation qui a échoué.
+
+\textbf{Exemples :}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{let}\NormalTok{ x = a }\KeywordTok{in}\NormalTok{ ()}
+\end{Highlighting}
+\end{Shaded}
+
+Affichera :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{Type}\NormalTok{ Inference:}
+\ExtensionTok{Error}\NormalTok{ from line 1 col 8 to line 1 col 9: }
+  \ExtensionTok{Unbound}\NormalTok{ variable a.}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{let}\NormalTok{ x = (}\KeywordTok{fun}\NormalTok{ a {-}\textgreater{} a) }\KeywordTok{in}\NormalTok{ (x : }\DataTypeTok{int}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Affichera :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{Type}\NormalTok{ Inference:}
+\ExtensionTok{Error}\NormalTok{ from line 1 col 33 to line 1 col 36: }
+  \ExtensionTok{int}\NormalTok{ = }\ErrorTok{(}\ExtensionTok{lambda}\NormalTok{ int,int}\KeywordTok{)}\BuiltInTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Erreurs d'évaluation}\label{erreurs-duxe9valuation}
+
+Nous avons également implémenté des erreurs d'évaluation afin de pouvoir
+afficher des messages d'erreurs plus explicites.\\
+
+\begin{itemize}
+\tightlist
+\item
+  Fuite dans les cas de filtrage
+\item
+  Division par zéro
+\end{itemize}
+
+Comme pour les erreurs de typage, lorsqu'une erreur d'évaluation est
+détectée, nous affichons un message d'erreur explicite mentionnant la
+ligne et la colonne de début et de fin de l'expression concernée.
+
+\textbf{Exemples :}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{(}\DecValTok{1}\NormalTok{ / ((}\KeywordTok{fun}\NormalTok{ a {-}\textgreater{} }\DecValTok{0}\NormalTok{) () )  ) }
+\end{Highlighting}
+\end{Shaded}
+
+Affichera :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{Evaluation:}
+\ExtensionTok{Error}\NormalTok{ from line 1 col 0 to line 1 col 26: }
+  \ExtensionTok{Division}\NormalTok{ by zero : }\ErrorTok{(}\ExtensionTok{1}\NormalTok{ / }\ErrorTok{(}\KeywordTok{(}\ExtensionTok{fun}\NormalTok{ a }\AttributeTok{{-}}\OperatorTok{\textgreater{}}\NormalTok{ 0}\KeywordTok{)} \KeywordTok{()))}\BuiltInTok{.}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{(}\KeywordTok{match} \DecValTok{2} \KeywordTok{with} 
+ \DecValTok{1}\NormalTok{ {-}\textgreater{} ()}
+\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+Affichera :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{Evaluation:}
+\ExtensionTok{Error}\NormalTok{ from line 1 col 0 to line 1 col 22: }
+  \ExtensionTok{Non}\NormalTok{ exhaustive pattern match on :}
+\KeywordTok{(}\ExtensionTok{match}\NormalTok{ 2 with }
+ \ExtensionTok{1} \AttributeTok{{-}}\OperatorTok{\textgreater{}} \ErrorTok{(}\KeywordTok{)}
+\KeywordTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\section{Améliorations possibles}\label{amuxe9liorations-possibles}
+
+Dans cette partie, nous allons présenter les différentes améliorations
+que nous aurions pu implémenter dans notre langage.
+
+Toutes ces améliorations ont été pensées et spécifiées, mais par manque
+de temps, nous n'avons pas pu les mettre en place.
+
+\textbf{Erreurs Utilisateur:}
+
+La possibilité de définir des erreurs et d'en générer au sein du
+programme aurait pu être une amélioration intéressante.
+
+\textbf{Egalité structurelle :}
+
+Nous aurions pu implémenter l'égalité structurelle afin de pouvoir
+comparer des valeurs de type complexe comme les constructions.
+
+\textbf{Analyse Statique :}
+
+Voici les différentes améliorations que nous aurions pu implémenter dans
+l'analyse statique :
+
+\begin{enumerate}
+      \item
+            Exhaustivité du filtrage de motif
+            Vérifier que le filtrage de motif était exhaustif. C'est-à-dire que toutes les valeurs possibles de l’expression filtrée sont couvertes par les patterns du filtrage de motifs.
+      \item
+            Détection de pattern inatteignable
+            Detecter que le filtrage de motif ne contient pas de pattern inatteignable.\
+            C'est-à-dire qu'un pattern n'est pas atteignable, car il est précédé d'un pattern qui couvre toutes les valeurs possibles de l'expression filtrée.
+      \item
+            Détection des variables non utilisées
+            Lors de l'analyse statique, nous aurions pu vérifier que toutes les variables de motifs sont utilisés dans l'expression de retour de chaque branche.
+      \item
+            Détection des types non utilisés
+            Vérifier que tous les types définis par l'utilisateur sont utilisés dans le programme.
+\end{enumerate}
+
 
 \end{document}

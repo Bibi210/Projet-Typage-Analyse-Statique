@@ -125,7 +125,6 @@ let rec nonExpensive e =
   | App _ | Ref _ -> false
   | Const _ | Var _ | Lambda _ -> true
   | Fix e -> nonExpensive e.body
-  | If a -> nonExpensive a.cond && nonExpensive a.tbranch && nonExpensive a.fbranch
   | Tuple args -> List.for_all nonExpensive args
   | Construct a -> nonExpensive a.args
   | UnOp a -> nonExpensive a.arg
@@ -233,25 +232,11 @@ let rec generateEquation typeenv node target env =
     let eq2 = generateEquation carg targ env in
     eq2 @ eq1
   | Const c -> [ generateConstTypeEquations c node.epos target ]
-  | If { cond; tbranch; fbranch } ->
-    let eq1 = generateEquation cond { tpos = node.epos; tpre = TConst TInt } env in
-    let eq2 = generateEquation tbranch target env in
-    let eq3 = generateEquation fbranch target env in
-    eq1 @ eq2 @ eq3
   | Let { varg; init; body } when isExpensive init ->
-    let instancedType, subs = infer' typeenv init env in
-    let env =
-      List.fold_left
-        (fun env { left; right } ->
-          match Env.find_opt (getTvar left) env with
-          | Some _ -> addBoundVarToEnv right env
-          | None -> env)
-        env
-        subs
-    in
-    let env' = Env.add varg.id instancedType env in
-    let res = subs @ generateEquation body target env' in
-    res
+    let envWithVar, targ = generateTVar varg.id node.epos env in
+    let eq1 = generateEquation init targ envWithVar in
+    let eq2 = generateEquation body target (Env.add varg.id targ env) in
+    eq1 @ eq2
   | Let { varg; init; body } ->
     let instancedType, subs = infer' typeenv init env in
     let env =

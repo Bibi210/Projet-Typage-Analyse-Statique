@@ -75,16 +75,6 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | App x -> fprintf fmt "(%a %a)" fmt_expr x.func fmt_expr x.carg
   | Lambda x -> fprintf fmt "(fun %a -> %a)" fmt_variable x.varg fmt_expr x.body
   | Const x -> fprintf fmt "%a" fmt_const_expr x
-  | If x ->
-    fprintf
-      fmt
-      "if %a then %a else %a"
-      fmt_expr
-      x.cond
-      fmt_expr
-      x.tbranch
-      fmt_expr
-      x.fbranch
   | Let x ->
     fprintf fmt "let %a = %a in %a" fmt_variable x.varg fmt_expr x.init fmt_expr x.body
   | Fix x -> fprintf fmt "fix %a %a" fmt_variable x.varg fmt_expr x.body

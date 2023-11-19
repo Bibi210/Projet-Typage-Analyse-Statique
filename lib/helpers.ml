@@ -40,5 +40,4 @@ let getNameFromSymbol symbol =
   | None -> symbol
 ;;
 
-
 let resetSymbolGenerator () = counter := 0

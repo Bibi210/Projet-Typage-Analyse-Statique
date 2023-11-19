@@ -123,7 +123,13 @@ pre_expr:
     }
     | c = const { Const c }
     | LIf ; cond = expr ; LThen ; tbranch = expr ; LElse ; fbranch = expr {
-            If { cond; tbranch; fbranch };
+            Match {
+                matched = cond;
+                cases = [
+                    { pattern = { pnode = LitteralPattern (Int 0); ppos = position $startpos(cond) $endpos(cond); typAnnotation = None }; consequence = tbranch };
+                    { pattern = { pnode = LitteralPattern (Int 1); ppos = position $startpos(cond) $endpos(cond); typAnnotation = None }; consequence = fbranch }
+                ]
+            }
     }
     | LLet; varg = variable; args = nonempty_list(variable);  LEqual; func_body = expr; content= letbody{
         Let {

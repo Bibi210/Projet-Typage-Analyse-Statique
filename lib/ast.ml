@@ -61,11 +61,6 @@ and pre_expr =
       ; body : expr
       }
   | Var of string
-  | If of
-      { cond : expr
-      ; tbranch : expr
-      ; fbranch : expr
-      }
   | Let of
       { varg : variable
       ; init : expr
