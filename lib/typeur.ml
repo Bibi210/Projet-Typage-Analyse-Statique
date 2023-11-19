@@ -288,13 +288,13 @@ let rec generateEquation typeenv node target env =
     let eq2 =
       Array.map
         (fun { pattern; consequence } ->
-          let env, tpattern = getPatternType typeenv pattern tmatched in
+          let env, tpattern = getPatternType typeenv pattern tmatched env in
           tpattern @ generateEquation consequence target env)
         cases
     in
     eq1 @ Array.fold_left (fun acc x -> acc @ x) [] eq2
 
-and getPatternType userEnv pattern target =
+and getPatternType userEnv pattern target basenv =
   let rec getPatternType pattern target typingenv =
     let makeExprEquiv pre_expr =
       { epos = pattern.ppos; epre = pre_expr; etyp_annotation = None }
@@ -334,7 +334,7 @@ and getPatternType userEnv pattern target =
            (InternalError
               (UnboundConstructor { id = constructor_ident; vpos = pattern.ppos })))
   in
-  getPatternType pattern target Env.empty
+  getPatternType pattern target basenv
 
 and unify ls target =
   let rec unify' ls result =
@@ -390,31 +390,28 @@ and infer' typeenv tree env =
   let target = unifyTarget tree.epos in
   try unify (generateEquation typeenv tree target env) target.tpre with
   | InternalError error ->
-    (match error with
-     | Unification a ->
-       raise
-         (TypingError
-            { message = Prettyprinter.string_of_equation a
-            ; location = a.left.tpos
-            ; equation =
-                Prettyprinter.string_of_equation_list
-                  (generateEquation typeenv tree target env)
-            })
-     | Unbound v ->
-       raise
-         (TypingError
-            { message = "Unbound variable " ^ v.id; location = v.vpos; equation = "" })
-     | UnboundConstructor c ->
-       raise
-         (TypingError
-            { message = "Unbound constructor " ^ c.id; location = c.vpos; equation = "" })
-     | AlreadyBound v ->
-       raise
-         (TypingError
-            { message = "Already bound variable in pattern " ^ v.id
-            ; location = v.vpos
-            ; equation = ""
-            }))
+    raise
+      (match error with
+       | Unification a ->
+         TypingError
+           { message = Prettyprinter.string_of_equation a
+           ; location = a.left.tpos
+           ; equation =
+               Prettyprinter.string_of_equation_list
+                 (generateEquation typeenv tree target env)
+           }
+       | Unbound v ->
+         TypingError
+           { message = "Unbound variable " ^ v.id; location = v.vpos; equation = "" }
+       | UnboundConstructor c ->
+         TypingError
+           { message = "Unbound constructor " ^ c.id; location = c.vpos; equation = "" }
+       | AlreadyBound v ->
+         TypingError
+           { message = "Already bound variable in pattern " ^ v.id
+           ; location = v.vpos
+           ; equation = ""
+           })
 ;;
 
 let removeInstance symbol =

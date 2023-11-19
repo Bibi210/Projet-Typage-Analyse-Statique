@@ -8,6 +8,7 @@ type eval_errors =
   | LambdaReduction of expr (* When the body of the function is only Fix of itself *)
   | Timeout of expr
   | OutOfBound of expr
+  | NonExhaustivePattern of expr
 
 exception InternalError of eval_errors
 
@@ -199,7 +200,34 @@ let rec substitute id other expr =
     writeConvertion (Match { matched = fix matched; cases })
 ;;
 
+let substituteEnv expr env =
+  let assoc = Env.bindings env in
+  List.fold_left (fun expr (id, other) -> substitute id other expr) expr assoc
+;;
+
 let memory = ref Env.empty
+
+let rec exprMatchPattern expr patt env =
+  match expr.epre, patt.pnode with
+  | _, VarPattern b -> Some (Env.add b expr env)
+  | Const a, LitteralPattern b when a = b -> Some env
+  | Tuple x, TuplePattern y when Array.length x = Array.length y ->
+    (try
+       Some
+         (List.fold_left2
+            (fun env x y ->
+              match exprMatchPattern x y env with
+              | Some env -> env
+              | None -> raise Exit)
+            env
+            (Array.to_list x)
+            (Array.to_list y))
+     with
+     | Exit -> None)
+  | Construct { constructor; args }, ConstructorPattern { constructor_ident; content } ->
+    if constructor.id = constructor_ident then exprMatchPattern args content env else None
+  | _, _ -> None
+;;
 
 let betaReduce e =
   let rec betaReduce' expr =
@@ -264,18 +292,40 @@ let betaReduce e =
       let args = betaReduce' args in
       writeConvertion (Construct { constructor; args })
     | Tuple x -> writeConvertion (Tuple (Array.map betaReduce' x))
-    | Lambda _ | Const _ | Var _ | Match _ -> expr
+    | Match { matched; cases } ->
+      let reduced = betaReduce' matched in
+      (match
+         Array.fold_left
+           (fun acc { pattern; consequence } ->
+             match acc with
+             | Some _ -> acc
+             | None ->
+               (match exprMatchPattern reduced pattern Env.empty with
+                | Some env -> Some (substituteEnv consequence env)
+                | None -> None))
+           None
+           cases
+       with
+       | Some x -> betaReduce' x
+       | None -> raise (InternalError (NonExhaustivePattern e)))
+    | Lambda _ | Const _ | Var _ -> expr
   in
   memory := Env.empty;
   let e = alphaConverter e in
   try alphaReverser (betaReduce' e) with
-  | InternalError (TyperCheck e) ->
-    raise (EvalError { message = "Type Checking Leak"; location = e.epos })
-  | InternalError (Unbound v) ->
-    raise (EvalError { message = "Unbound variable"; location = v.vpos })
-  | InternalError (LambdaReduction e) ->
-    raise (EvalError { message = "Lambda Reduction Failure"; location = e.epos })
-  | InternalError (Timeout e) ->
-    let msg = Prettyprinter.string_of_expr e in
-    raise (EvalError { message = "Timeout on : " ^ msg; location = e.epos })
+  | InternalError err ->
+    raise
+      (match err with
+       | TyperCheck e -> EvalError { message = "Type Checking Leak"; location = e.epos }
+       | Unbound v -> EvalError { message = "Unbound variable"; location = v.vpos }
+       | LambdaReduction e ->
+         EvalError { message = "Lambda Reduction Failure"; location = e.epos }
+       | Timeout e ->
+         let msg = Prettyprinter.string_of_expr e in
+         EvalError { message = "Timeout on : " ^ msg; location = e.epos }
+       | OutOfBound e -> EvalError { message = "Out of bound"; location = e.epos }
+       | NonExhaustivePattern e ->
+         let msg = Prettyprinter.string_of_expr e in
+         EvalError
+           { message = "Non exhaustive pattern match on : " ^ msg; location = e.epos })
 ;;

@@ -1,6 +1,24 @@
+
 type list a = 
-  Nil 
+| Nil 
 | Cons of (a * (list a))
 
-let l  = ref Nil in 
-let x = (l put Cons (fun x -> x,Nil)) in fun x -> let a = (fun c -> let y = x in y) in ((a 1) x)
+type option a = 
+  | None
+  | Some of a
+
+let rec listbase n = 
+  ( match n with 
+      0 -> Nil
+    | _ -> Cons (n, (listbase (n + (-1))))) in
+
+let hd l = 
+  ( match l with 
+      Nil -> None
+    | Cons (x, xs) -> Some(x)) in
+
+let rec map f l = 
+ ( match l with 
+    Nil -> Nil
+  | Cons (x, xs) -> Cons ( (f x), (map f xs))) in 
+(map (fun a -> (a*a)) (listbase 10))
