@@ -17,6 +17,41 @@ exception
     ; location : Helpers.position
     }
 
+let rec alphaConvertPattern pattern env =
+  let newenv, newpre =
+    match pattern.pnode with
+    | LitteralPattern a -> env, LitteralPattern a
+    | VarPattern a ->
+      let newid = symbolGenerator a in
+      Env.add a newid env, VarPattern newid
+    | TuplePattern a ->
+      let newenv, newpre =
+        Array.fold_left
+          (fun (env, pre) x ->
+            let newenv, newpre = alphaConvertPattern x env in
+            newenv, Array.append pre [| newpre |])
+          (env, [||])
+          a
+      in
+      newenv, TuplePattern newpre
+    | ConstructorPattern { constructor_ident; content } ->
+      let newenv, newpre = alphaConvertPattern content env in
+      newenv, ConstructorPattern { constructor_ident; content = newpre }
+  in
+  newenv, { pnode = newpre; ppos = pattern.ppos; typAnnotation = pattern.typAnnotation }
+;;
+
+let rec alphaRevertPattern pattern =
+  let writeConvertion pnode = { pattern with pnode } in
+  match pattern.pnode with
+  | LitteralPattern _ -> pattern
+  | VarPattern x -> writeConvertion (VarPattern (getNameFromSymbol x))
+  | TuplePattern x -> writeConvertion (TuplePattern (Array.map alphaRevertPattern x))
+  | ConstructorPattern { constructor_ident; content } ->
+    writeConvertion
+      (ConstructorPattern { constructor_ident; content = alphaRevertPattern content })
+;;
+
 let rec alphaReverser expr =
   let renameVarId oldVar = { oldVar with id = getNameFromSymbol oldVar.id } in
   { expr with
@@ -52,7 +87,16 @@ let rec alphaReverser expr =
          Assign { area = alphaReverser area; nval = alphaReverser nval }
        | Construct { constructor; args } ->
          Construct { constructor; args = alphaReverser args }
-       | Tuple x -> Tuple (Array.map alphaReverser x))
+       | Tuple x -> Tuple (Array.map alphaReverser x)
+       | Match { matched; cases } ->
+         let cases =
+           Array.map
+             (fun { pattern; consequence } ->
+               let newpattern = alphaRevertPattern pattern in
+               { pattern = newpattern; consequence = alphaReverser consequence })
+             cases
+         in
+         Match { matched = alphaReverser matched; cases })
   }
 ;;
 
@@ -111,6 +155,15 @@ let alphaConverter expr =
     | Construct { constructor; args } ->
       writeConvertion (Construct { constructor; args = alphaConverter' args env })
     | Tuple x -> writeConvertion (Tuple (Array.map (fun x -> alphaConverter' x env) x))
+    | Match { matched; cases } ->
+      let cases =
+        Array.map
+          (fun { pattern; consequence } ->
+            let newenv, newpattern = alphaConvertPattern pattern env in
+            { pattern = newpattern; consequence = alphaConverter' consequence newenv })
+          cases
+      in
+      writeConvertion (Match { matched = alphaConverter' matched env; cases })
   in
   alphaConverter' expr Env.empty
 ;;
@@ -137,6 +190,13 @@ let rec substitute id other expr =
   | Construct { constructor; args } ->
     writeConvertion (Construct { constructor; args = fix args })
   | Tuple x -> writeConvertion (Tuple (Array.map fix x))
+  | Match { matched; cases } ->
+    let cases =
+      Array.map
+        (fun { pattern; consequence } -> { pattern; consequence = fix consequence })
+        cases
+    in
+    writeConvertion (Match { matched = fix matched; cases })
 ;;
 
 let memory = ref Env.empty
@@ -204,7 +264,7 @@ let betaReduce e =
       let args = betaReduce' args in
       writeConvertion (Construct { constructor; args })
     | Tuple x -> writeConvertion (Tuple (Array.map betaReduce' x))
-    | Lambda _ | Const _ | Var _ -> expr
+    | Lambda _ | Const _ | Var _ | Match _ -> expr
   in
   memory := Env.empty;
   let e = alphaConverter e in

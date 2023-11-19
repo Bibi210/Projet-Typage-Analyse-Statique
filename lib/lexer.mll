@@ -46,6 +46,9 @@ rule token = parse
 | "," {LTupleInfixe}
 | "type" {LType}
 | "of" {LOf}
+| "match" {LMatch}
+| "with" {LWith}
+| "_" {LUnderScore}
 | vartype as v {LVarType v}
 | basic_ident as ident {LBasicIdent ident}
 | constructor_ident as ident {LConstructorIdent ident}

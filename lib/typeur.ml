@@ -7,6 +7,7 @@ type typing_errors =
   | Unification of equation
   | Unbound of variable
   | UnboundConstructor of variable
+  | AlreadyBound of variable
 
 exception InternalError of typing_errors
 
@@ -250,7 +251,7 @@ let rec generateEquation typeenv node target env =
     let env, targs =
       Array.fold_left
         (fun (env, ls) a ->
-          let env, t = generateTVar "conten" a.epos env in
+          let env, t = generateTVar "content" a.epos env in
           env, t :: ls)
         (env, [])
         args
@@ -281,6 +282,59 @@ let rec generateEquation typeenv node target env =
     let argtarget = { tpos = arg.epos; tpre = List.nth op.args_types 0 } in
     let eq1 = generateEquation arg argtarget env in
     [ { left = target; right = { tpos = node.epos; tpre = op.return_type } } ] @ eq1
+  | Match { matched; cases } ->
+    let env, tmatched = generateTVar "matched" node.epos env in
+    let eq1 = generateEquation matched tmatched env in
+    let eq2 =
+      Array.map
+        (fun { pattern; consequence } ->
+          let env, tpattern = getPatternType typeenv pattern tmatched in
+          tpattern @ generateEquation consequence target env)
+        cases
+    in
+    eq1 @ Array.fold_left (fun acc x -> acc @ x) [] eq2
+
+and getPatternType userEnv pattern target =
+  let rec getPatternType pattern target typingenv =
+    let makeExprEquiv pre_expr =
+      { epos = pattern.ppos; epre = pre_expr; etyp_annotation = None }
+    in
+    match pattern.pnode with
+    | LitteralPattern x ->
+      typingenv, generateEquation userEnv (makeExprEquiv (Const x)) target typingenv
+    | VarPattern x ->
+      let env, t = generateTVar x pattern.ppos typingenv in
+      (match Env.find_opt x userEnv with
+       | None -> Env.add x t env, [ { left = target; right = t } ]
+       | Some _ -> raise (InternalError (AlreadyBound { id = x; vpos = pattern.ppos })))
+    | TuplePattern args ->
+      let env, targs =
+        Array.fold_left
+          (fun (env, ls) a ->
+            let env, t = generateTVar "pcontent" a.ppos env in
+            env, t :: ls)
+          (typingenv, [])
+          args
+      in
+      List.fold_left2
+        (fun (env, eqs) patt tvar ->
+          let newenv, eq = getPatternType patt tvar env in
+          newenv, eqs @ eq)
+        (env, [])
+        (List.of_seq (Array.to_seq args))
+        targs
+    | ConstructorPattern { constructor_ident; content } ->
+      (match Env.find_opt constructor_ident userEnv with
+       | Some def ->
+         let constructor_content, owner = instanciateTypingEntry def pattern.ppos in
+         let newenv, eq = getPatternType content constructor_content.(0) typingenv in
+         newenv, { left = target; right = owner } :: eq
+       | None ->
+         raise
+           (InternalError
+              (UnboundConstructor { id = constructor_ident; vpos = pattern.ppos })))
+  in
+  getPatternType pattern target Env.empty
 
 and unify ls target =
   let rec unify' ls result =
@@ -335,23 +389,32 @@ and unify ls target =
 and infer' typeenv tree env =
   let target = unifyTarget tree.epos in
   try unify (generateEquation typeenv tree target env) target.tpre with
-  | InternalError (Unification a) ->
-    raise
-      (TypingError
-         { message = Prettyprinter.string_of_equation a
-         ; location = a.left.tpos
-         ; equation =
-             Prettyprinter.string_of_equation_list
-               (generateEquation typeenv tree target env)
-         })
-  | InternalError (Unbound v) ->
-    raise
-      (TypingError
-         { message = "Unbound variable " ^ v.id; location = v.vpos; equation = "" })
-  | InternalError (UnboundConstructor c) ->
-    raise
-      (TypingError
-         { message = "Unbound constructor " ^ c.id; location = c.vpos; equation = "" })
+  | InternalError error ->
+    (match error with
+     | Unification a ->
+       raise
+         (TypingError
+            { message = Prettyprinter.string_of_equation a
+            ; location = a.left.tpos
+            ; equation =
+                Prettyprinter.string_of_equation_list
+                  (generateEquation typeenv tree target env)
+            })
+     | Unbound v ->
+       raise
+         (TypingError
+            { message = "Unbound variable " ^ v.id; location = v.vpos; equation = "" })
+     | UnboundConstructor c ->
+       raise
+         (TypingError
+            { message = "Unbound constructor " ^ c.id; location = c.vpos; equation = "" })
+     | AlreadyBound v ->
+       raise
+         (TypingError
+            { message = "Already bound variable in pattern " ^ v.id
+            ; location = v.vpos
+            ; equation = ""
+            }))
 ;;
 
 let removeInstance symbol =

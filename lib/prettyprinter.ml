@@ -58,6 +58,16 @@ let fmt_unary_operator fmt = function
   | Neg -> fmt_string fmt "-"
 ;;
 
+let rec fmt_pattern fmt patt =
+  match patt.pnode with
+  | LitteralPattern econst -> fprintf fmt "%a" fmt_const_expr econst
+  | VarPattern string -> fprintf fmt "%s" string
+  | TuplePattern patterns -> fprintf fmt "(%a)" fmt_pattern_array patterns
+  | ConstructorPattern { constructor_ident : string; content : pattern } ->
+    fprintf fmt "%s %a" constructor_ident fmt_pattern content
+
+and fmt_pattern_array patts = fmt_with_string_array "," fmt_pattern patts
+
 let rec fmt_pre_expr typAnnot fmt expr =
   let fmt_expr = fmt_expr typAnnot in
   match expr with
@@ -87,6 +97,20 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
   | Construct x -> fprintf fmt "%a(%a)" fmt_variable x.constructor fmt_expr x.args
   | Tuple x -> fprintf fmt "(%a)" fmt_expr_array x
+  | Match x ->
+    fprintf
+      fmt
+      "(match %a with \n %a)"
+      fmt_expr
+      x.matched
+      (fmt_match_case_array typAnnot)
+      x.cases
+
+and fmt_match_case typAnnot fmt { pattern; consequence } =
+  fprintf fmt "%a -> %a\n" fmt_pattern pattern (fmt_expr typAnnot) consequence
+
+and fmt_match_case_array typAnnot casearr =
+  fmt_with_string_array "|" (fmt_match_case typAnnot) casearr
 
 and fmt_expr typAnnot fmt expr =
   let fmt_pre_expr = fmt_pre_expr typAnnot in

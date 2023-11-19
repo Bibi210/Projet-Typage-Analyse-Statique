@@ -18,6 +18,11 @@ let symbolGenerator name =
   Printf.sprintf "!%s_%d" name !counter
 ;;
 
+let symbolGeneratorIREV name =
+  incr counter;
+  Printf.sprintf "%s%d" name !counter
+;;
+
 let incrAndGetCounter () =
   incr counter;
   !counter

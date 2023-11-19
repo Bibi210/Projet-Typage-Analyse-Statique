@@ -43,7 +43,7 @@
 %token <string> LBasicIdent LVarType LConstructorIdent
 
 %token LSimpleArrow LEqual
-%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref  LOf
+%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref  LOf LMatch LWith LUnderScore
 %token LPut
 %token LTupleInfixe 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
@@ -192,6 +192,59 @@ pre_expr:
     | ident =  constructor  { 
          Construct { constructor =  ident ; args = {epre = Const Unit; epos = position $startpos(ident) $endpos(ident) ; etyp_annotation = None } }
     }
+    | LOpenPar;LMatch ; matched = expr ;LWith ;option(LOr) ; cases = separated_nonempty_list(LOr,match_case);LClosePar{
+       Match{ matched  ; cases = Array.of_list cases}  
+    }
+
+match_case :
+| pattern = pattern ;LSimpleArrow; consequence = expr{
+    { pattern ; consequence }
+}
+
+pattern:
+    | LOpenPar ; p = pattern ; LClosePar { p }
+    | p = pre_pattern {
+        {
+            pnode = p ; 
+            ppos = position $startpos(p) $endpos(p);
+            typAnnotation = None
+        }
+    }
+    | LOpenPar ; ppre = pre_pattern ; LColon; etype = typing ; LClosePar {
+        {
+            pnode = ppre;
+            ppos = position $startpos(ppre) $endpos(ppre);
+            typAnnotation = Some(etype) 
+        }
+    }
+
+pre_pattern:
+| c = const {LitteralPattern c}
+| v = LBasicIdent { VarPattern v }
+| LUnderScore { VarPattern (symbolGeneratorIREV "wild") }
+| t = tuplepattern { t }
+| constructor_ident = LConstructorIdent {
+  ConstructorPattern
+      { constructor_ident
+      ; content = {
+            pnode = LitteralPattern Unit
+            ; ppos = position $startpos(constructor_ident) $endpos(constructor_ident)
+            ; typAnnotation = None
+            }
+      }
+}
+| constructor_ident = LConstructorIdent; content = pattern {
+    ConstructorPattern
+      { constructor_ident
+      ; content 
+      }
+}
+
+tuplepattern:
+    | LOpenPar ; hd = pattern ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,pattern);LClosePar  {
+        TuplePattern (Array.of_list (hd::tail))
+    }
+
 
 tuple:
     | LOpenPar ; hd = expr ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,expr);LClosePar  {

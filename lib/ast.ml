@@ -100,6 +100,10 @@ and pre_expr =
       ; args : expr
       }
   | Tuple of expr array
+  | Match of
+      { matched : expr
+      ; cases : match_case array
+      }
 
 and match_case =
   { pattern : pattern
@@ -108,7 +112,8 @@ and match_case =
 
 and pattern =
   { pnode : pre_pattern
-  ; ploc : Helpers.position
+  ; ppos : Helpers.position
+  ; typAnnotation : etype option
   }
 
 and pre_pattern =

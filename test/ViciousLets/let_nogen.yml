@@ -1,5 +1,5 @@
 titre: "Let in no generalise"
 description: "Verify Generalisation in let"
-prog: "fun x -> let y = x in (y x)"
+prog: "fun x -> let a = (fun c -> let y = x in y) in ((a 1) x)"
 typeur: ""
 IO: []
