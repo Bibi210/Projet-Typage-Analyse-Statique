@@ -1,0 +1,5 @@
+titre: "Let in no generalise indirect"
+description: "Verify Generalisation in let with indirect call"
+prog: "fun x -> let y = fun a -> (x a) in (x y)"
+typeur: ""
+IO: []

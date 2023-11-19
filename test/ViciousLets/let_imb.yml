@@ -1,0 +1,6 @@
+titre: "Let in Imbriqué"
+description: "Let in Imbriqué"
+prog: "fun y -> let id = fun x -> x in let x = fun a -> (y+(id a)) in (id x)"
+typeur: "(lambda int,(lambda int,int))"
+IO: 
+  - "(fun y -> let id = (fun x -> x) in let x = (fun a -> y + (id a)) in (id x))"

@@ -26,7 +26,7 @@ let rec fmt_pre_type fmt ty =
   match ty with
   | TVar v -> fmt_string fmt v
   | TConst x -> fprintf fmt "%a" fmt_const x
-  | TAny x -> fprintf fmt "any %a %a" fmt_string x.id fmt_type x.polytype
+  | TAny x -> fprintf fmt "(any %a->%a)" fmt_string x.id fmt_type x.polytype
   | TApp x -> fprintf fmt "(%a %a)" fmt_type x.constructor fmt_type_array x.args
 
 and fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty.tpre

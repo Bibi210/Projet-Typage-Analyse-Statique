@@ -73,6 +73,25 @@ let showEnv env =
   print_endline ""
 ;;
 
+let getTvar x =
+  match x.tpre with
+  | TVar x -> x
+  | _ -> failwith "This is not a type variable"
+;;
+
+let addBoundVarToEnv typ env =
+  let rec collectVars' typ excluded result =
+    match typ.tpre with
+    | TVar x when Env.mem x excluded -> result
+    | TVar x -> Env.add x typ result
+    | TConst _ -> result
+    | TApp { args; _ } ->
+      Array.fold_left (fun acc x -> collectVars' x excluded acc) result args
+    | TAny { id; polytype } -> collectVars' polytype (Env.add id () excluded) result
+  in
+  collectVars' typ Env.empty env
+;;
+
 let generalise typ env =
   let rec generalise' typ env =
     match typ.tpre with
@@ -203,6 +222,15 @@ let rec generateEquation typeenv node target env =
     eq1 @ eq2 @ eq3
   | Let { varg; init; body } ->
     let instancedType, subs = infer' typeenv init env in
+    let env =
+      List.fold_left
+        (fun env { left; right } ->
+          match Env.find_opt (getTvar left) env with
+          | Some _ -> addBoundVarToEnv right env
+          | None -> env)
+        env
+        subs
+    in
     let env' = Env.add varg.id (generalise instancedType env) env in
     let res = subs @ generateEquation body target env' in
     res
