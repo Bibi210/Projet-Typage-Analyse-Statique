@@ -1,0 +1,267 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  12pt,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+  \setmainfont[]{Palatino}
+  \setsansfont[]{Helvetica}
+  \setmonofont[]{Menlo}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin = 1.2in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\ifLuaTeX
+\usepackage[bidi=basic]{babel}
+\else
+\usepackage[bidi=default]{babel}
+\fi
+\babelprovide[main,import]{french}
+\ifPDFTeX
+\else
+\babelfont{rm}[]{Palatino}
+\fi
+% get rid of language-specific shorthands (see #6817):
+\let\LanguageShortHands\languageshorthands
+\def\languageshorthands#1{}
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Rapport Projet TAS - Implémentation d'un langage de programmation avec typage},
+  pdfauthor={Dibassi Brahima 21210230},
+  pdflang={fr},
+  colorlinks=true,
+  linkcolor={Maroon},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={NavyBlue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Rapport Projet TAS - Implémentation d'un langage de programmation
+avec typage}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Typeur, Evaluateur , Parser}
+\author{Dibassi Brahima 21210230}
+\date{2023-11-19}
+
+\begin{document}
+\maketitle
+
+\newpage
+
+{
+\hypersetup{linkcolor=}
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\newpage
+
+\section{Langage de programmation
+choisi}\label{langage-de-programmation-choisi}
+
+Afin d'implémenter ce projet, nous avons choisi le langage de
+programmation \emph{OCaml}.\\
+Ayant déjà expérimenté l'implémentation de l'interpréteur d'un langage
+en OCaml suite au cours d' \textbf{APS}, nous avons pu constater que ce
+langage était très adapté à ce genre de projet.\\
+Grâce à la somme de produits au pattern-matching associé, et au support
+des paradigmes, imperatif et fonctionnel, nous avons pu nous servir des
+différents traits du langage afin de faciliter notre implémentation de
+l'évaluateur et du typeur.
+
+\section{Lancement du projet}\label{lancement-du-projet}
+
+Afin de compiler notre projet il suffit d'être à la racine de chaque
+version d'APS et de lancer :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+    \ExtensionTok{dune}\NormalTok{ build}
+\end{Highlighting}
+\end{Shaded}
+
+Pour les versions du langage supérieures à APS1A, nous proposons
+également un lancement automatisé de notre batterie de tests. La
+commande est :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+    \ExtensionTok{dune}\NormalTok{ test }\AttributeTok{{-}{-}force}
+\end{Highlighting}
+\end{Shaded}
+
+Si vous souhaitez lancer votre fichier à travers toutes les étapes, il
+est également possible d'utiliser la commande suivante :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+    \ExtensionTok{dune}\NormalTok{ exec ProjetTAS }\PreprocessorTok{*}\NormalTok{chemin vers le fichier à tester}\PreprocessorTok{*}\NormalTok{/}\PreprocessorTok{*}\NormalTok{fichier}\PreprocessorTok{*}\NormalTok{.ml}
+\end{Highlighting}
+\end{Shaded}
+
+\newpage
+
+\section{Structure du projet}\label{structure-du-projet}
+
+\begin{itemize}
+\tightlist
+\item
+  Repertoire \texttt{Lib/}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{lexer.mll} : Création des tokens
+  \item
+    \texttt{parser.mly} : Parser afin de construire notre arbre
+    syntaxique abstrait depuis les tokens
+  \item
+    \texttt{ast.ml} : Structure de l'AST du langage avec les types des
+    expressions
+  \item
+    \texttt{baselib.ml} : Définitions des primitives du langage et leur
+    types
+  \item
+    \texttt{evaluator.ml} : Partie sémentique du langage, évaluation des
+    expressions
+  \item
+    \texttt{prettyprinter.ml} : Fonctions d'affichage
+  \item
+    \texttt{typeur.ml} : Partie analyse statique, vérification des types
+  \item
+    \texttt{typingEnv.ml} : Gestion de l'environnement des déclarations
+    de types par l'utilisateur
+  \end{itemize}
+\item
+  Repertoire \texttt{Bin/}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{main.ml} : Contient notre script principal, lancé lors de la
+    commande \texttt{dune\ exec\ ProjetTAS\ *fichier*.ml}. Il vérifie si
+    le programme .ml ciblé est bien typé et l'évalue si c'est le cas en
+    faisant tous les affichages sur le terminal. Nous avons choisi
+    d'afficher également l'état de la mémoire à la fin de l'évaluation
+    du programme.
+  \end{itemize}
+\item
+  Repertoire \texttt{Test/}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{testing.ml} : Script de test, permet de tester tous les
+    fichiers .ml présents dans le dossier \texttt{test} et de vérifier
+    si le typeur et l'évaluateur fonctionnent correctement.
+  \item
+    \texttt{yamlHelper.ml} : Fonctions d'aide pour la lecture des
+    fichiers de test au format yaml
+  \item
+    \texttt{template.yaml} : Template de fichier de test au format yaml
+  \end{itemize}
+\end{itemize}
+
+Les tests sont dans le dossier \texttt{test} classés en fonction des
+extentions du langage auxquels ils correspondent. Les extensions du
+langage devant également passer les tests des versions précédentes.
+
+\newpage
+
+\section{Syntaxe du langage}\label{syntaxe-du-langage}
+
+\section{Difficultés rencontrées}\label{difficultuxe9s-rencontruxe9es}
+
+\section{Extensions}\label{extensions}
+
+\subsection{Types Utilisateurs}\label{types-utilisateurs}
+
+\subsection{MatchPattern}\label{matchpattern}
+
+\subsection{Annotations de type}\label{annotations-de-type}
+
+\subsection{Gestion des erreurs}\label{gestion-des-erreurs}
+
+\end{document}

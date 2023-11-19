@@ -1,13 +1,6 @@
-type option a = 
-| None 
-| Some of a
-
 type list a = 
   Nil 
 | Cons of (a * (list a))
 
-let a = Some(()) in 
-(match a with 
-| Some(_) -> Cons((fun a -> a), Nil)
-| Some(()) -> Nil
-| None -> Nil )
+let l  = ref Nil in 
+let x = (l put Cons (fun x -> x,Nil)) in fun x -> let a = (fun c -> let y = x in y) in ((a 1) x)
