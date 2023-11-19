@@ -66,7 +66,7 @@ Nous proposons également un lancement automatisé de notre batterie de tests. L
   - `template.yaml` : Template de fichier de test au format yaml
 
 Les tests sont dans le dossier `test` classés en fonction des extentions du langage auxquels ils correspondent.
-Les extensions du langage devant également passer les tests des versions précédentes.
+Les extensions du langage doivent également passer les tests des versions précédentes.
 
 \newpage
 
@@ -272,7 +272,7 @@ match t with
 ```
 ### Analyse Statique
 
-L' analyse Statique vérifie ici 4 informations :
+L' analyse statique vérifie ici 4 informations :
 \begin{enumerate}
       \item
             Le type des patterns est bien conforme au type de l'expression filtrée
@@ -396,7 +396,7 @@ Voici les différentes améliorations que nous aurions pu implémenter dans l'an
             Vérifier que le filtrage de motif était exhaustif. C'est-à-dire que toutes les valeurs possibles de l’expression filtrée sont couvertes par les patterns du filtrage de motifs.
       \item
             Détection de pattern inatteignable
-            Detecter que le filtrage de motif ne contient pas de pattern inatteignable.\
+            Détecter que le filtrage de motif ne contient pas de pattern inatteignable.\
             C'est-à-dire qu'un pattern n'est pas atteignable, car il est précédé d'un pattern qui couvre toutes les valeurs possibles de l'expression filtrée.
       \item
             Détection des variables non utilisées
