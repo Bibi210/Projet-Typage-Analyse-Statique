@@ -134,19 +134,19 @@ let fmt_memory fmt mem =
 let fmt_construtors fmt newConstr =
   fprintf
     fmt
-    "@[%a of %a @]"
+    "%a of %a"
     fmt_string
     newConstr.constructor_ident
     (fmt_with_string "*" fmt_type)
     newConstr.content
 ;;
 
-let fmt_construtors_list = fmt_with_string "\n|" fmt_construtors
+let fmt_construtors_list = fmt_with_string "\n  | " fmt_construtors
 
 let fmt_typedef fmt def =
   fprintf
     fmt
-    "type %a %a = \n|%a"
+    "type %a %a = \n  | %a"
     fmt_string
     def.basic_ident
     fmt_variable_list

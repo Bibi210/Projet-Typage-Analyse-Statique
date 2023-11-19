@@ -261,10 +261,10 @@ let betaReduce e =
       let op = find_unop op in
       let arg = betaReduce' arg in
       writeConvertion (op.func [ arg.epre ])
-    | Ref { epre = Var _; _ } -> expr
+    | Ref { epre = Var x; _ } when getNameFromSymbol x = "ptr" -> expr
     | Ref x ->
       let addr = Helpers.symbolGenerator "ptr" in
-      memory := Env.add addr x !memory;
+      memory := Env.add addr (betaReduce' x) !memory;
       writeConvertion (Ref { epre = Var addr; epos = x.epos; etyp_annotation = None })
     | Deref x ->
       (match x.epre with
@@ -281,7 +281,7 @@ let betaReduce e =
       let nval = betaReduce' nval in
       let addr = betaReduce' area in
       (match addr.epre with
-       | Ref { epre = Var addr; _ } ->
+       | Ref { epre = Var addr; _ } when getNameFromSymbol addr = "ptr"  ->
          (match Env.find_opt addr !memory with
           | Some _ ->
             memory := Env.add addr nval !memory;

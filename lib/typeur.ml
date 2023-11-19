@@ -120,6 +120,27 @@ let generalise typ env =
   polytype
 ;;
 
+let rec nonExpensive e =
+  match e.epre with
+  | App _ | Ref _ -> false
+  | Const _ | Var _ | Lambda _ -> true
+  | Fix e -> nonExpensive e.body
+  | If a -> nonExpensive a.cond && nonExpensive a.tbranch && nonExpensive a.fbranch
+  | Tuple args -> List.for_all nonExpensive args
+  | Construct a -> nonExpensive a.args
+  | UnOp a -> nonExpensive a.arg
+  | BinOp a -> nonExpensive a.larg && nonExpensive a.rarg
+  | Deref a -> nonExpensive a
+  | Assign a -> nonExpensive a.area && nonExpensive a.nval
+  | Seq a -> nonExpensive a.left && nonExpensive a.right
+  | Let a -> nonExpensive a.init && nonExpensive a.body
+  | Match a ->
+    nonExpensive a.matched
+    && List.for_all (fun { consequence; _ } -> nonExpensive consequence) a.cases
+;;
+
+let isExpensive e = not (nonExpensive e)
+
 let rec generateEquation typeenv node target env =
   let generateEquation = generateEquation typeenv in
   (match node.etyp_annotation with
@@ -217,6 +238,20 @@ let rec generateEquation typeenv node target env =
     let eq2 = generateEquation tbranch target env in
     let eq3 = generateEquation fbranch target env in
     eq1 @ eq2 @ eq3
+  | Let { varg; init; body } when isExpensive init ->
+    let instancedType, subs = infer' typeenv init env in
+    let env =
+      List.fold_left
+        (fun env { left; right } ->
+          match Env.find_opt (getTvar left) env with
+          | Some _ -> addBoundVarToEnv right env
+          | None -> env)
+        env
+        subs
+    in
+    let env' = Env.add varg.id instancedType env in
+    let res = subs @ generateEquation body target env' in
+    res
   | Let { varg; init; body } ->
     let instancedType, subs = infer' typeenv init env in
     let env =
@@ -253,18 +288,15 @@ let rec generateEquation typeenv node target env =
         args
     in
     let args_equations = List.map2 (fun a t -> generateEquation a t env) args targs in
-    List.fold_left (fun acc x -> acc @ x) [] args_equations
-    @ [ { left = target
-        ; right =
-            { tpos = node.epos
-            ; tpre =
-                TApp
-                  { constructor = { tpre = TConst TTuple; tpos = node.epos }
-                  ; args = targs
-                  }
-            }
+    { left = target
+    ; right =
+        { tpos = node.epos
+        ; tpre =
+            TApp
+              { constructor = { tpre = TConst TTuple; tpos = node.epos }; args = targs }
         }
-      ]
+    }
+    :: List.fold_left (fun acc x -> acc @ x) [] args_equations
   | Construct { constructor; args } ->
     (match Env.find_opt constructor.id typeenv with
      | Some def ->
@@ -292,44 +324,64 @@ let rec generateEquation typeenv node target env =
 and getPatternType userEnv pattern target basenv =
   let rec getPatternType pattern target typingenv =
     let makeExprEquiv pre_expr =
-      { epos = pattern.ppos; epre = pre_expr; etyp_annotation = None }
+      { epos = pattern.ppos; epre = pre_expr; etyp_annotation = pattern.typAnnotation }
     in
-    match pattern.pnode with
-    | LitteralPattern x ->
-      typingenv, generateEquation userEnv (makeExprEquiv (Const x)) target typingenv
-    | VarPattern x ->
-      let env, t = generateTVar x pattern.ppos typingenv in
-      (match Env.find_opt x userEnv with
-       | None -> Env.add x t env, [ { left = target; right = t } ]
-       | Some _ -> raise (InternalError (AlreadyBound { id = x; vpos = pattern.ppos })))
-    | TuplePattern args ->
-      let env, targs =
-        List.fold_left
-          (fun (env, ls) a ->
-            let env, t = generateTVar "pcontent" a.ppos env in
-            env, t :: ls)
-          (typingenv, [])
-          args
-      in
-      List.fold_left2
-        (fun (env, eqs) patt tvar ->
-          let newenv, eq = getPatternType patt tvar env in
-          newenv, eqs @ eq)
-        (env, [])
-        args
-        targs
-    | ConstructorPattern { constructor_ident; content } ->
-      (match Env.find_opt constructor_ident userEnv with
-       | Some def ->
-         let constructor_content, owner = instanciateTypingEntry def pattern.ppos in
-         let newenv, eq =
-           getPatternType content (List.hd constructor_content) typingenv
-         in
-         newenv, { left = target; right = owner } :: eq
-       | None ->
-         raise
-           (InternalError
-              (UnboundConstructor { id = constructor_ident; vpos = pattern.ppos })))
+    let newenv, eq =
+      match pattern.pnode with
+      | LitteralPattern x ->
+        typingenv, generateEquation userEnv (makeExprEquiv (Const x)) target typingenv
+      | VarPattern x ->
+        let env, t = generateTVar x pattern.ppos typingenv in
+        (match Env.find_opt x userEnv with
+         | None -> Env.add x t env, [ { left = target; right = t } ]
+         | Some _ -> raise (InternalError (AlreadyBound { id = x; vpos = pattern.ppos })))
+      | TuplePattern args ->
+        let env, targs =
+          List.fold_left
+            (fun (env, ls) a ->
+              let env, t = generateTVar "pcontent" a.ppos env in
+              env, t :: ls)
+            (typingenv, [])
+            args
+        in
+        let env, eq =
+          List.fold_left2
+            (fun (env, eqs) patt tvar ->
+              let newenv, eq = getPatternType patt tvar env in
+              newenv, eqs @ eq)
+            (env, [])
+            args
+            targs
+        in
+        ( env
+        , { left = target
+          ; right =
+              { tpos = pattern.ppos
+              ; tpre =
+                  TApp
+                    { constructor = { tpre = TConst TTuple; tpos = pattern.ppos }
+                    ; args = targs
+                    }
+              }
+          }
+          :: eq )
+      | ConstructorPattern { constructor_ident; content } ->
+        (match Env.find_opt constructor_ident userEnv with
+         | Some def ->
+           let constructor_content, owner = instanciateTypingEntry def pattern.ppos in
+           let newenv, eq =
+             getPatternType content (List.hd constructor_content) typingenv
+           in
+           newenv, { left = target; right = owner } :: eq
+         | None ->
+           raise
+             (InternalError
+                (UnboundConstructor { id = constructor_ident; vpos = pattern.ppos })))
+    in
+    ( newenv
+    , match pattern.typAnnotation with
+      | Some x -> { left = target; right = x } :: eq
+      | None -> eq )
   in
   getPatternType pattern target basenv
 
