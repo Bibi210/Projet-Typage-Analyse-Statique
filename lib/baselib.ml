@@ -13,7 +13,7 @@ let pre_to_type pre = { tpre = pre; tpos = stdpos }
 let std_lambda arg return =
   TApp
     { constructor = pre_to_type (TConst TLambda)
-    ; args = [| pre_to_type arg; pre_to_type return |]
+    ; args = [ pre_to_type arg; pre_to_type return ]
     }
 ;;
 

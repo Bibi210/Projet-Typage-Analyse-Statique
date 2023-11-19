@@ -2,7 +2,7 @@ open Ast
 open Helpers
 
 type typingEnvEntry =
-  { constructor_content : etype array
+  { constructor_content : etype list
   ; owner : pre_type
   ; vars : variable list
   }
@@ -13,9 +13,7 @@ let pretype_of_def (def : def) =
   | _ ->
     TApp
       { constructor = { tpre = TVar def.basic_ident; tpos = def.dpos }
-      ; args =
-          Array.of_list
-            (List.map (fun x -> { tpre = TVar x.id; tpos = x.vpos }) def.parameters)
+      ; args = List.map (fun x -> { tpre = TVar x.id; tpos = x.vpos }) def.parameters
       }
 ;;
 
@@ -45,7 +43,7 @@ let rec renameTVar oldName newName typ =
        | TVar x when x = oldName -> TVar newName
        | TAny { id; polytype } -> TAny { id; polytype = fix polytype }
        | TApp { constructor; args } ->
-         TApp { constructor = fix constructor; args = Array.map fix args }
+         TApp { constructor = fix constructor; args = List.map fix args }
        | TConst _ | TVar _ -> typ.tpre)
   }
 ;;
@@ -53,7 +51,7 @@ let rec renameTVar oldName newName typ =
 let instanciateTypingEntry { constructor_content; owner; vars } where =
   let renamedTVars = List.map (fun x -> x.id, symbolGenerator x.id) vars in
   let constructor_content =
-    Array.map
+    List.map
       (fun x ->
         List.fold_left (fun acc (old, newV) -> renameTVar old newV acc) x renamedTVars)
       constructor_content

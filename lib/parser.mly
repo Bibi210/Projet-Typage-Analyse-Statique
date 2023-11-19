@@ -24,7 +24,7 @@
 
     let functype_curryfy args body =
     List.fold_right
-        (fun a acc -> { tpre =  TApp {constructor = { tpre = TConst TLambda; tpos = a.tpos } ; args = [| a ; acc|]} ; tpos = a.tpos })
+        (fun a acc -> { tpre =  TApp {constructor = { tpre = TConst TLambda; tpos = a.tpos } ; args = [a ; acc]} ; tpos = a.tpos })
         args
         body
     ;;
@@ -73,13 +73,13 @@ def:
 newconstructor_case:
 | constructor_ident = LConstructorIdent{
   { constructor_ident
-  ; content = [| {tpre = TConst TUnit ; tpos = position $startpos(constructor_ident) $endpos(constructor_ident) } |]
+  ; content = [ {tpre = TConst TUnit ; tpos = position $startpos(constructor_ident) $endpos(constructor_ident) } ]
   ; dcpos = position $startpos(constructor_ident) $endpos(constructor_ident)
   }
 }
 | constructor_ident = LConstructorIdent; LOf ; etype = typing{
   { constructor_ident
-  ; content = [|etype|]
+  ; content = [etype]
   ; dcpos = position $startpos(constructor_ident) $endpos(constructor_ident)
   }
 }
@@ -193,7 +193,7 @@ pre_expr:
          Construct { constructor =  ident ; args = {epre = Const Unit; epos = position $startpos(ident) $endpos(ident) ; etyp_annotation = None } }
     }
     | LMatch ; matched = expr ;LWith ;option(LOr) ; cases = separated_nonempty_list(LOr,match_case){
-       Match{ matched  ; cases = Array.of_list cases}  
+       Match{ matched  ; cases =  cases}  
     }
 
 match_case :
@@ -242,13 +242,13 @@ pre_pattern:
 
 tuplepattern:
     | LOpenPar ; hd = pattern ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,pattern);LClosePar  {
-        TuplePattern (Array.of_list (hd::tail))
+        TuplePattern (hd::tail)
     }
 
 
 tuple:
     | LOpenPar ; hd = expr ; LTupleInfixe; tail = separated_nonempty_list(LTupleInfixe,expr);LClosePar  {
-        Tuple (Array.of_list (hd::tail))
+        Tuple (hd::tail)
     }
 
 const:
@@ -325,13 +325,13 @@ pre_typing:
         let rev_args = List.rev args in
         let last = List.hd rev_args in
         let remove_last = List.rev (List.tl rev_args) in
-        TApp {constructor = last; args = Array.of_list remove_last}
+        TApp {constructor = last; args = remove_last}
     }
     | LOpenPar; args = nonempty_list(typing);LSimpleArrow;body = typing;LClosePar {
         (functype_curryfy args body).tpre
     }
     | LOpenPar ; hd = typing ; LMul ; tail = separated_nonempty_list(LMul,typing) ; LClosePar  {
-        TApp {constructor = { tpre = TConst TTuple; tpos = position  $startpos($1) $endpos($5)  }; args = Array.of_list (hd::tail)}
+        TApp {constructor = { tpre = TConst TTuple; tpos = position  $startpos($1) $endpos($5)  }; args = hd::tail}
     }
 
 

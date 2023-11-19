@@ -27,14 +27,14 @@ let rec alphaConvertPattern pattern env =
       Env.add a newid env, VarPattern newid
     | TuplePattern a ->
       let newenv, newpre =
-        Array.fold_left
+        List.fold_left
           (fun (env, pre) x ->
             let newenv, newpre = alphaConvertPattern x env in
-            newenv, Array.append pre [| newpre |])
-          (env, [||])
+            newenv, newpre :: pre)
+          (env, [])
           a
       in
-      newenv, TuplePattern newpre
+      newenv, TuplePattern (List.rev newpre)
     | ConstructorPattern { constructor_ident; content } ->
       let newenv, newpre = alphaConvertPattern content env in
       newenv, ConstructorPattern { constructor_ident; content = newpre }
@@ -47,7 +47,7 @@ let rec alphaRevertPattern pattern =
   match pattern.pnode with
   | LitteralPattern _ -> pattern
   | VarPattern x -> writeConvertion (VarPattern (getNameFromSymbol x))
-  | TuplePattern x -> writeConvertion (TuplePattern (Array.map alphaRevertPattern x))
+  | TuplePattern x -> writeConvertion (TuplePattern (List.map alphaRevertPattern x))
   | ConstructorPattern { constructor_ident; content } ->
     writeConvertion
       (ConstructorPattern { constructor_ident; content = alphaRevertPattern content })
@@ -88,10 +88,10 @@ let rec alphaReverser expr =
          Assign { area = alphaReverser area; nval = alphaReverser nval }
        | Construct { constructor; args } ->
          Construct { constructor; args = alphaReverser args }
-       | Tuple x -> Tuple (Array.map alphaReverser x)
+       | Tuple x -> Tuple (List.map alphaReverser x)
        | Match { matched; cases } ->
          let cases =
-           Array.map
+           List.map
              (fun { pattern; consequence } ->
                let newpattern = alphaRevertPattern pattern in
                { pattern = newpattern; consequence = alphaReverser consequence })
@@ -155,10 +155,10 @@ let alphaConverter expr =
         (Assign { area = alphaConverter' area env; nval = alphaConverter' nval env })
     | Construct { constructor; args } ->
       writeConvertion (Construct { constructor; args = alphaConverter' args env })
-    | Tuple x -> writeConvertion (Tuple (Array.map (fun x -> alphaConverter' x env) x))
+    | Tuple x -> writeConvertion (Tuple (List.map (fun x -> alphaConverter' x env) x))
     | Match { matched; cases } ->
       let cases =
-        Array.map
+        List.map
           (fun { pattern; consequence } ->
             let newenv, newpattern = alphaConvertPattern pattern env in
             { pattern = newpattern; consequence = alphaConverter' consequence newenv })
@@ -190,10 +190,10 @@ let rec substitute id other expr =
   | Assign { area; nval } -> writeConvertion (Assign { area = fix area; nval = fix nval })
   | Construct { constructor; args } ->
     writeConvertion (Construct { constructor; args = fix args })
-  | Tuple x -> writeConvertion (Tuple (Array.map fix x))
+  | Tuple x -> writeConvertion (Tuple (List.map fix x))
   | Match { matched; cases } ->
     let cases =
-      Array.map
+      List.map
         (fun { pattern; consequence } -> { pattern; consequence = fix consequence })
         cases
     in
@@ -211,7 +211,7 @@ let rec exprMatchPattern expr patt env =
   match expr.epre, patt.pnode with
   | _, VarPattern b -> Some (Env.add b expr env)
   | Const a, LitteralPattern b when a = b -> Some env
-  | Tuple x, TuplePattern y when Array.length x = Array.length y ->
+  | Tuple x, TuplePattern y when List.length x = List.length y ->
     (try
        Some
          (List.fold_left2
@@ -220,8 +220,8 @@ let rec exprMatchPattern expr patt env =
               | Some env -> env
               | None -> raise Exit)
             env
-            (Array.to_list x)
-            (Array.to_list y))
+            x
+            y)
      with
      | Exit -> None)
   | Construct { constructor; args }, ConstructorPattern { constructor_ident; content } ->
@@ -291,11 +291,11 @@ let betaReduce e =
     | Construct { constructor; args } ->
       let args = betaReduce' args in
       writeConvertion (Construct { constructor; args })
-    | Tuple x -> writeConvertion (Tuple (Array.map betaReduce' x))
+    | Tuple x -> writeConvertion (Tuple (List.map betaReduce' x))
     | Match { matched; cases } ->
       let reduced = betaReduce' matched in
       (match
-         Array.fold_left
+         List.fold_left
            (fun acc { pattern; consequence } ->
              match acc with
              | Some _ -> acc

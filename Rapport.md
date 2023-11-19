@@ -77,6 +77,5 @@ Les extensions du langage devant également passer les tests des versions préc�
 ## Annotations de type
 ## Gestion des erreurs 
 
--- TODO MATCH PATTERN EVAL
 -- TODO POLY FAIBLE
 -- TODO EQUALITY STRUCT

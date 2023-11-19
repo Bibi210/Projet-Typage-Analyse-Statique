@@ -24,7 +24,7 @@ and pre_type =
       }
   | TApp of
       { constructor : etype
-      ; args : etype array
+      ; args : etype list
       }
 
 type bin_op =
@@ -99,10 +99,10 @@ and pre_expr =
       { constructor : variable
       ; args : expr
       }
-  | Tuple of expr array
+  | Tuple of expr list
   | Match of
       { matched : expr
-      ; cases : match_case array
+      ; cases : match_case list
       }
 
 and match_case =
@@ -119,7 +119,7 @@ and pattern =
 and pre_pattern =
   | LitteralPattern of econst
   | VarPattern of string
-  | TuplePattern of pattern array
+  | TuplePattern of pattern list
   | ConstructorPattern of
       { constructor_ident : string
       ; content : pattern
@@ -134,7 +134,7 @@ type def =
 
 and newconstructor_case =
   { constructor_ident : string
-  ; content : etype array
+  ; content : etype list
   ; dcpos : Helpers.position
   }
 

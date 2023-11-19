@@ -7,9 +7,8 @@ open TypingEnv
 let fmt_string = pp_print_string
 let fmt_variable fmt { id; _ } = pp_print_string fmt id
 let fmt_with_string str = pp_print_list ~pp_sep:(fun fmt () -> fprintf fmt str)
-let fmt_with_string_array str = pp_print_array ~pp_sep:(fun fmt () -> fprintf fmt str)
 let fmt_with_space pp fmt l = fmt_with_string " " pp fmt l
-let fmt_with_comma pp fmt l = fmt_with_string ", " pp fmt l
+let fmt_with_comma pp fmt l = fmt_with_string "," pp fmt l
 let fmt_variable_list = fmt_with_comma fmt_variable
 let fmt_with_semicolon pp fmt l = fmt_with_string "; " pp fmt l
 let fmt_with_mult pp fmt l = fmt_with_string "* " pp fmt l
@@ -28,11 +27,10 @@ let rec fmt_pre_type fmt ty =
   | TConst x -> fprintf fmt "%a" fmt_const x
   | TAny x -> fprintf fmt "(any %a->%a)" fmt_string x.id fmt_type x.polytype
   | TApp x when x.constructor.tpre = TConst TLambda ->
-    fprintf fmt "(%a %a)"  fmt_type x.constructor fmt_type_array x.args
-  | TApp x -> fprintf fmt "(%a %a)" fmt_type_array x.args fmt_type x.constructor
+    fprintf fmt "(%a %a)" fmt_type x.constructor fmt_type_list x.args
+  | TApp x -> fprintf fmt "(%a %a)" fmt_type_list x.args fmt_type x.constructor
 
 and fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty.tpre
-and fmt_type_array tyls = fmt_with_string_array "," fmt_type tyls
 and fmt_type_list tyls = fmt_with_comma fmt_type tyls
 
 let fmt_equation fmt { left; right } = fprintf fmt "%a = %a" fmt_type left fmt_type right
@@ -64,11 +62,11 @@ let rec fmt_pattern fmt patt =
   match patt.pnode with
   | LitteralPattern econst -> fprintf fmt "%a" fmt_const_expr econst
   | VarPattern string -> fprintf fmt "%s" string
-  | TuplePattern patterns -> fprintf fmt "(%a)" fmt_pattern_array patterns
+  | TuplePattern patterns -> fprintf fmt "(%a)" fmt_pattern_list patterns
   | ConstructorPattern { constructor_ident : string; content : pattern } ->
     fprintf fmt "%s %a" constructor_ident fmt_pattern content
 
-and fmt_pattern_array patts = fmt_with_string_array "," fmt_pattern patts
+and fmt_pattern_list patts = fmt_with_string "," fmt_pattern patts
 
 let rec fmt_pre_expr typAnnot fmt expr =
   let fmt_expr = fmt_expr typAnnot in
@@ -92,27 +90,27 @@ let rec fmt_pre_expr typAnnot fmt expr =
   | Fix x -> fprintf fmt "fix %a %a" fmt_variable x.varg fmt_expr x.body
   | UnOp { op; arg } -> fprintf fmt "%a %a" fmt_unary_operator op fmt_expr arg
   | BinOp { op; larg; rarg } ->
-    fprintf fmt "%a %a %a" fmt_expr larg fmt_binary_operator op fmt_expr rarg
+    fprintf fmt "(%a %a %a)" fmt_expr larg fmt_binary_operator op fmt_expr rarg
   | Ref x -> fprintf fmt "ref %a" fmt_expr x
   | Deref x -> fprintf fmt "!%a" fmt_expr x
   | Seq x -> fprintf fmt "%a; %a" fmt_expr x.left fmt_expr x.right
   | Assign x -> fprintf fmt "%a := %a" fmt_expr x.area fmt_expr x.nval
   | Construct x -> fprintf fmt "%a(%a)" fmt_variable x.constructor fmt_expr x.args
-  | Tuple x -> fprintf fmt "(%a)" fmt_expr_array x
+  | Tuple x -> fprintf fmt "(%a)" (fmt_expr_list typAnnot) x
   | Match x ->
     fprintf
       fmt
       "(match %a with \n %a)"
       fmt_expr
       x.matched
-      (fmt_match_case_array typAnnot)
+      (fmt_match_case_list typAnnot)
       x.cases
 
 and fmt_match_case typAnnot fmt { pattern; consequence } =
   fprintf fmt "%a -> %a\n" fmt_pattern pattern (fmt_expr typAnnot) consequence
 
-and fmt_match_case_array typAnnot casearr =
-  fmt_with_string_array "|" (fmt_match_case typAnnot) casearr
+and fmt_match_case_list typAnnot casearr =
+  fmt_with_string " |" (fmt_match_case typAnnot) casearr
 
 and fmt_expr typAnnot fmt expr =
   let fmt_pre_expr = fmt_pre_expr typAnnot in
@@ -121,10 +119,9 @@ and fmt_expr typAnnot fmt expr =
   | None, _ -> fprintf fmt "%a" fmt_pre_expr expr.epre
   | _, false -> fprintf fmt "%a" fmt_pre_expr expr.epre
 
-and fmt_expr_array tyls = fmt_with_string_array "," (fmt_expr false) tyls
+and fmt_expr_list typAnnot = fmt_with_comma (fmt_expr typAnnot)
 
 let fmt_expr_without_type fmt expr = fprintf fmt "%a" (fmt_expr false) expr
-let fmt_expr_list typAnnot = fmt_with_comma (fmt_expr typAnnot)
 let fmt_pre_expr_list = fmt_with_comma (fmt_pre_expr true)
 let fmt_expr_list_without_type = fmt_with_comma fmt_expr_without_type
 
@@ -140,7 +137,7 @@ let fmt_construtors fmt newConstr =
     "@[%a of %a @]"
     fmt_string
     newConstr.constructor_ident
-    (fmt_with_string_array "*" fmt_type)
+    (fmt_with_string "*" fmt_type)
     newConstr.content
 ;;
 
@@ -164,7 +161,7 @@ let fmt_typingEnvEntry fmt (key, entry) =
     "%a -> %a from %a"
     fmt_string
     key
-    fmt_type_array
+    fmt_type_list
     entry.constructor_content
     fmt_pre_type
     entry.owner

@@ -21,4 +21,5 @@ let rec map f l =
   match l with 
     Nil -> Nil
   | Cons (x, xs) -> Cons ( (f x), (map f xs)) ;;
-(map (fun a -> (a*a)) (listbase 10))
+
+  let l = ref listbase in let a = (l put (fun x -> x)) in ((hd !l) + 2)

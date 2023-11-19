@@ -23,7 +23,7 @@ let rec occurCheck var typ =
   match typ.tpre with
   | TVar x when x = var -> true
   | TAny { polytype; _ } -> fix polytype
-  | TApp { constructor; args } -> Array.exists fix args || fix constructor
+  | TApp { constructor; args } -> List.exists fix args || fix constructor
   | TConst _ | TVar _ -> false
 ;;
 
@@ -34,7 +34,7 @@ let rec substitute var newtyp oldtyp =
   | TAny { id; polytype } -> { oldtyp with tpre = TAny { id; polytype = fix polytype } }
   | TApp { constructor; args } ->
     { oldtyp with
-      tpre = TApp { constructor = fix constructor; args = Array.map fix args }
+      tpre = TApp { constructor = fix constructor; args = List.map fix args }
     }
   | TConst _ | TVar _ -> oldtyp
 ;;
@@ -87,7 +87,7 @@ let addBoundVarToEnv typ env =
     | TVar x -> Env.add x typ result
     | TConst _ -> result
     | TApp { args; _ } ->
-      Array.fold_left (fun acc x -> collectVars' x excluded acc) result args
+      List.fold_left (fun acc x -> collectVars' x excluded acc) result args
     | TAny { id; polytype } -> collectVars' polytype (Env.add id () excluded) result
   in
   collectVars' typ Env.empty env
@@ -102,7 +102,7 @@ let generalise typ env =
        | None -> [ x ], Env.add x typ env)
     | TConst _ -> [], env
     | TApp { args; _ } ->
-      Array.fold_left
+      List.fold_left
         (fun (acc, env) x ->
           let acc', env' = generalise' x env in
           acc @ acc', env')
@@ -144,9 +144,7 @@ let rec generateEquation typeenv node target env =
         { tpos = node.epos
         ; tpre =
             TApp
-              { constructor = { tpre = TConst TRef; tpos = node.epos }
-              ; args = [| targ |]
-              }
+              { constructor = { tpre = TConst TRef; tpos = node.epos }; args = [ targ ] }
         }
     }
     :: eq1
@@ -158,9 +156,7 @@ let rec generateEquation typeenv node target env =
         { tpos = node.epos
         ; tpre =
             TApp
-              { constructor = { tpre = TConst TRef; tpos = node.epos }
-              ; args = [| targ |]
-              }
+              { constructor = { tpre = TConst TRef; tpos = node.epos }; args = [ targ ] }
         }
         env
     in
@@ -176,7 +172,7 @@ let rec generateEquation typeenv node target env =
             { tpre =
                 TApp
                   { constructor = { tpre = TConst TRef; tpos = area.epos }
-                  ; args = [| tnval |]
+                  ; args = [ tnval ]
                   }
             ; tpos = tnval.tpos
             }
@@ -194,7 +190,7 @@ let rec generateEquation typeenv node target env =
         ; tpre =
             TApp
               { constructor = { tpre = TConst TLambda; tpos = node.epos }
-              ; args = [| targ; tbody |]
+              ; args = [ targ; tbody ]
               }
         }
     }
@@ -208,7 +204,7 @@ let rec generateEquation typeenv node target env =
         ; tpre =
             TApp
               { constructor = { tpre = TConst TLambda; tpos = func.epos }
-              ; args = [| targ; target |]
+              ; args = [ targ; target ]
               }
         }
         env
@@ -249,16 +245,15 @@ let rec generateEquation typeenv node target env =
     ({ left = target; right = { tpos = node.epos; tpre = op.return_type } } :: eq1) @ eq2
   | Tuple args ->
     let env, targs =
-      Array.fold_left
+      List.fold_left
         (fun (env, ls) a ->
           let env, t = generateTVar "content" a.epos env in
           env, t :: ls)
         (env, [])
         args
     in
-    let targs = Array.of_list targs in
-    let args_equations = Array.map2 (fun a t -> generateEquation a t env) args targs in
-    Array.fold_left (fun acc x -> acc @ x) [] args_equations
+    let args_equations = List.map2 (fun a t -> generateEquation a t env) args targs in
+    List.fold_left (fun acc x -> acc @ x) [] args_equations
     @ [ { left = target
         ; right =
             { tpos = node.epos
@@ -275,7 +270,7 @@ let rec generateEquation typeenv node target env =
      | Some def ->
        let constructor_content, owner = instanciateTypingEntry def node.epos in
        { left = target; right = owner }
-       :: generateEquation args constructor_content.(0) env
+       :: generateEquation args (List.hd constructor_content) env
      | None -> raise (InternalError (UnboundConstructor constructor)))
   | UnOp { op; arg } ->
     let op = find_unop op in
@@ -286,13 +281,13 @@ let rec generateEquation typeenv node target env =
     let env, tmatched = generateTVar "matched" node.epos env in
     let eq1 = generateEquation matched tmatched env in
     let eq2 =
-      Array.map
+      List.map
         (fun { pattern; consequence } ->
           let env, tpattern = getPatternType typeenv pattern tmatched env in
           tpattern @ generateEquation consequence target env)
         cases
     in
-    eq1 @ Array.fold_left (fun acc x -> acc @ x) [] eq2
+    eq1 @ List.fold_left (fun acc x -> acc @ x) [] eq2
 
 and getPatternType userEnv pattern target basenv =
   let rec getPatternType pattern target typingenv =
@@ -309,7 +304,7 @@ and getPatternType userEnv pattern target basenv =
        | Some _ -> raise (InternalError (AlreadyBound { id = x; vpos = pattern.ppos })))
     | TuplePattern args ->
       let env, targs =
-        Array.fold_left
+        List.fold_left
           (fun (env, ls) a ->
             let env, t = generateTVar "pcontent" a.ppos env in
             env, t :: ls)
@@ -321,13 +316,15 @@ and getPatternType userEnv pattern target basenv =
           let newenv, eq = getPatternType patt tvar env in
           newenv, eqs @ eq)
         (env, [])
-        (List.of_seq (Array.to_seq args))
+        args
         targs
     | ConstructorPattern { constructor_ident; content } ->
       (match Env.find_opt constructor_ident userEnv with
        | Some def ->
          let constructor_content, owner = instanciateTypingEntry def pattern.ppos in
-         let newenv, eq = getPatternType content constructor_content.(0) typingenv in
+         let newenv, eq =
+           getPatternType content (List.hd constructor_content) typingenv
+         in
          newenv, { left = target; right = owner } :: eq
        | None ->
          raise
@@ -357,12 +354,10 @@ and unify ls target =
          unify' (substituteAll x left tail) ({ right = left; left = right } :: result)
        | TApp { constructor; args }, TApp { constructor = constrb; args = argsb }
          when constructor.tpre = constrb.tpre ->
-         if Array.length args <> Array.length argsb
+         if List.length args <> List.length argsb
          then raise (InternalError (Unification { left; right }))
          else (
-           let equations =
-             Array.to_list (Array.map2 (fun x y -> { left = x; right = y }) args argsb)
-           in
+           let equations = List.map2 (fun x y -> { left = x; right = y }) args argsb in
            unify' (equations @ tail) result)
        | _ -> raise (InternalError (Unification { left; right })))
   in
@@ -429,7 +424,7 @@ let rec alphaReverser etype =
        | TVar x -> TVar (getNameFromSymbol (removeInstance x))
        | TConst _ -> etype.tpre
        | TApp { constructor; args } ->
-         TApp { constructor; args = Array.map alphaReverser args }
+         TApp { constructor; args = List.map alphaReverser args }
        | TAny { id; polytype } -> TAny { id; polytype = alphaReverser polytype })
   ; tpos = etype.tpos
   }
