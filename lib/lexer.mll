@@ -49,7 +49,7 @@ rule token = parse
 | "match" {LMatch}
 | "with" {LWith}
 | "_" {LUnderScore}
-| vartype as v {LVarType v}
+| "'" {LQuote}
 | basic_ident as ident {LBasicIdent ident}
 | constructor_ident as ident {LConstructorIdent ident}
 | num+ as n       { Lint (int_of_string n) }

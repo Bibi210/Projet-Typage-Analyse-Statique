@@ -1,7 +1,7 @@
 titre: "ListInvalid"
 description: "Definiton d'une liste chaine non valide"
 prog: "
-  type list a = Nil | Cons of (a * (list a))
+  type 'a list = Nil | Cons of ('a * ('a list))
   Cons(3,Cons( (fun a -> a) ,Cons(3,Nil)))"
 typeur: ""
 IO: 

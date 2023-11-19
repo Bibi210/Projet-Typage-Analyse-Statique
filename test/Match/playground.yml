@@ -1,0 +1,29 @@
+titre: "UltimateTest"
+description: "ForFun"
+prog: "
+  type 'a list = 
+  | Nil 
+  | Cons of ('a * ( 'a list))
+
+  type 'a option = 
+    | None
+    | Some of 'a
+
+  let rec listbase n = 
+    match n with 
+        0 -> Nil
+      | _ -> Cons (n, (listbase (n + (-1)))) ;;
+
+  let hd l = 
+    match l with 
+        Nil -> None
+      | Cons (x, xs) -> Some(x) ;;
+
+  let rec map f l = 
+    match l with 
+      Nil -> Nil
+    | Cons (x, xs) -> Cons ( (f x), (map f xs)) ;;
+  (map (fun a -> (a*a)) (listbase 10))"
+typeur: (int list)
+IO: 
+  - "Cons((100,Cons((81,Cons((64,Cons((49,Cons((36,Cons((25,Cons((16,Cons((9,Cons((4,Cons((1,Nil(())))))))))))))))))))))"

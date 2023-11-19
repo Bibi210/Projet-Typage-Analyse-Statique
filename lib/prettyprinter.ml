@@ -27,7 +27,9 @@ let rec fmt_pre_type fmt ty =
   | TVar v -> fmt_string fmt v
   | TConst x -> fprintf fmt "%a" fmt_const x
   | TAny x -> fprintf fmt "(any %a->%a)" fmt_string x.id fmt_type x.polytype
-  | TApp x -> fprintf fmt "(%a %a)" fmt_type x.constructor fmt_type_array x.args
+  | TApp x when x.constructor.tpre = TConst TLambda ->
+    fprintf fmt "(%a %a)"  fmt_type x.constructor fmt_type_array x.args
+  | TApp x -> fprintf fmt "(%a %a)" fmt_type_array x.args fmt_type x.constructor
 
 and fmt_type fmt ty = fprintf fmt "%a" fmt_pre_type ty.tpre
 and fmt_type_array tyls = fmt_with_string_array "," fmt_type tyls

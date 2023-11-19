@@ -1,10 +1,10 @@
 titre: "Option"
 description: "Definiton d'un type option"
 prog: "
-  type option a = 
+  type 'a option = 
   | None 
-  | Some of a
-  Some( (fun a -> Some (a)  : (t -> (option int) ) ) )"
-typeur: "(option (lambda int,(option int)))"
+  | Some of 'a
+  Some( (fun a -> Some (a)  : (t -> (int option) ) ) )"
+typeur: "((lambda int,(int option)) option)"
 IO: 
   - "Some((fun a -> Some(a)))"

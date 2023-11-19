@@ -1,6 +1,5 @@
 module Env = Map.Make (String)
 
-
 type position =
   { start_pos : Lexing.position
   ; end_pos : Lexing.position
@@ -40,5 +39,6 @@ let getNameFromSymbol symbol =
   | Some i -> String.sub symbol 0 i
   | None -> symbol
 ;;
+
 
 let resetSymbolGenerator () = counter := 0

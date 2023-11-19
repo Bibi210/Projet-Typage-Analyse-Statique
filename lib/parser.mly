@@ -40,10 +40,10 @@
 %token EOF
 %token LOpenPar LClosePar LColon LRightAngleBraket LLeftAngleBraket
 %token <int>Lint
-%token <string> LBasicIdent LVarType LConstructorIdent
+%token <string> LBasicIdent  LConstructorIdent
 
 %token LSimpleArrow LEqual
-%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref  LOf LMatch LWith LUnderScore
+%token LFun LIf LThen LElse LLet LIn  LRec LSemiColon LRef LDeref  LOf LMatch LWith LUnderScore LQuote
 %token LPut
 %token LTupleInfixe 
 %token LAdd LNeg LNot LMul LDiv LMod LOr LLess LGreater 
@@ -60,7 +60,7 @@ prog:
 }
 
 def:
-| LType; basic_ident = LBasicIdent ; parameters = list(variable) ; LEqual ; 
+| LType; parameters = list(def_tvar) ; basic_ident = LBasicIdent ; LEqual ; 
   option(LOr) ;constructors = separated_nonempty_list(LOr,newconstructor_case){
     { dpos = position $startpos(basic_ident) $endpos(basic_ident);
       basic_ident; 
@@ -192,7 +192,7 @@ pre_expr:
     | ident =  constructor  { 
          Construct { constructor =  ident ; args = {epre = Const Unit; epos = position $startpos(ident) $endpos(ident) ; etyp_annotation = None } }
     }
-    | LOpenPar;LMatch ; matched = expr ;LWith ;option(LOr) ; cases = separated_nonempty_list(LOr,match_case);LClosePar{
+    | LMatch ; matched = expr ;LWith ;option(LOr) ; cases = separated_nonempty_list(LOr,match_case){
        Match{ matched  ; cases = Array.of_list cases}  
     }
 
@@ -263,6 +263,14 @@ variable:
         }
     }
 
+def_tvar:
+    | LQuote;var = LBasicIdent {
+        {
+            id = var; 
+            vpos = position $startpos(var) $endpos(var)
+        }
+    }
+
 constructor:
     | var = LConstructorIdent {
         {
@@ -304,7 +312,7 @@ typing:
     } 
 
 pre_typing:
-    | var = LVarType { TVar var }
+    | var = def_tvar { TVar (var.id) }
     | basic_ident = LBasicIdent { 
         match basic_ident with
         | "int" -> TConst TInt
@@ -313,7 +321,11 @@ pre_typing:
         }
     | LRef ; { TConst TRef }
     | LOpenPar ; t1 = typing ; args = nonempty_list(typing) ; LClosePar {
-        TApp {constructor = t1; args = Array.of_list args}
+        let args = t1::args in
+        let rev_args = List.rev args in
+        let last = List.hd rev_args in
+        let remove_last = List.rev (List.tl rev_args) in
+        TApp {constructor = last; args = Array.of_list remove_last}
     }
     | LOpenPar; args = nonempty_list(typing);LSimpleArrow;body = typing;LClosePar {
         (functype_curryfy args body).tpre

@@ -7,7 +7,7 @@ let testDir = dirtyPrefix ^ "test/"
 let directories =
   List.map
     (fun elem -> testDir ^ elem ^ "/")
-    [ "SimpleLambda"; "PCF"; "Traits_Imperatifs"; "UserTypes"; "ViciousLets" ]
+    [ "SimpleLambda"; "PCF"; "Traits_Imperatifs"; "UserTypes"; "ViciousLets" ;"Match"]
 ;;
 
 type test =
